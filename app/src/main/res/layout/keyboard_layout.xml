@@ -1,0 +1,72 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/keyboardLayout"
+    android:layout_width="match_parent"
+    android:layout_height="160dp"
+    android:orientation="vertical"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:orientation="horizontal">
+
+        <TextView style="@style/KeyButton" android:text="Q"/>
+        <TextView style="@style/KeyButton" android:text="W"/>
+        <TextView style="@style/KeyButton" android:text="E"/>
+        <TextView style="@style/KeyButton" android:text="R"/>
+        <TextView style="@style/KeyButton" android:text="T"/>
+        <TextView style="@style/KeyButton" android:text="Y"/>
+        <TextView style="@style/KeyButton" android:text="U"/>
+        <TextView style="@style/KeyButton" android:text="I"/>
+        <TextView style="@style/KeyButton" android:text="O"/>
+        <TextView style="@style/KeyButton" android:text="P"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp">
+
+        <TextView style="@style/KeyButton" android:text="A"/>
+        <TextView style="@style/KeyButton" android:text="S"/>
+        <TextView style="@style/KeyButton" android:text="D"/>
+        <TextView style="@style/KeyButton" android:text="F"/>
+        <TextView style="@style/KeyButton" android:text="G"/>
+        <TextView style="@style/KeyButton" android:text="H"/>
+        <TextView style="@style/KeyButton" android:text="J"/>
+        <TextView style="@style/KeyButton" android:text="K"/>
+        <TextView style="@style/KeyButton" android:text="L"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:orientation="horizontal">
+
+        <TextView
+            style="@style/KeyButton"
+            android:layout_width="55dp"
+            android:layout_weight="0"
+            android:text="ENTER"
+            android:textSize="10sp"/>
+
+        <TextView style="@style/KeyButton" android:text="Z"/>
+        <TextView style="@style/KeyButton" android:text="X"/>
+        <TextView style="@style/KeyButton" android:text="C"/>
+        <TextView style="@style/KeyButton" android:text="V"/>
+        <TextView style="@style/KeyButton" android:text="B"/>
+        <TextView style="@style/KeyButton" android:text="N"/>
+        <TextView style="@style/KeyButton" android:text="M"/>
+
+        <TextView
+            style="@style/KeyButton"
+            android:layout_width="45dp"
+            android:layout_weight="0"
+            android:text="⌫"/>
+    </LinearLayout>
+
+</LinearLayout>

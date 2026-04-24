@@ -1,0 +1,156 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="65dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp">
+
+            <TextView
+                android:id="@+id/btnBack"
+                android:layout_width="40dp"
+                android:layout_height="wrap_content"
+                android:text="‹"
+                android:textColor="@color/white"
+                android:textSize="36sp" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="WORDLE-TO-GO #67"
+                android:textColor="@color/white"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/btnLeaderboard"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_leaderboard_temp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/dark_gray" />
+
+        <GridLayout
+            android:id="@+id/wordGrid"
+            android:layout_width="250dp"
+            android:layout_height="300dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="35dp"
+            android:columnCount="5"
+            android:rowCount="6">
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+
+            <TextView style="@style/GridCell" />
+        </GridLayout>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+
+        <include layout="@layout/keyboard_layout"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/leaderboardPopup"
+        android:layout_width="280dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/leaderboard_bg"
+        android:orientation="vertical"
+        android:padding="22dp"
+        android:visibility="gone">
+
+        <TextView
+            android:text="Leaderboard"
+            android:textColor="@color/white"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <TextView
+            android:text="1   PlayerOne        2450\n2   WordMaster     2230\n3   LexiPro              1980\n4   PuzzleKing        1780\n5   You                    1500"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:lineSpacingExtra="12dp"
+            android:layout_marginTop="20dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
+
+</FrameLayout>

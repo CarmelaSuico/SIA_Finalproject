@@ -1,0 +1,148 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black_bg"
+    android:orientation="vertical"
+    android:padding="22dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="WORDLE-TO-GO"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:textSize="28sp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="70dp"
+        android:layout_marginBottom="55dp"/>
+
+    <LinearLayout
+        android:id="@+id/cardDaily"
+        android:layout_width="match_parent"
+        android:layout_height="105dp"
+        android:background="@drawable/rounded_green"
+        android:orientation="horizontal"
+        android:padding="24dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="55dp"
+            android:layout_height="55dp"
+            android:src="@drawable/ic_calendar_temp"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="20dp">
+
+            <TextView
+                android:text="Daily"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <TextView
+                android:text="Solve a new puzzle everyday!\nChallenge yourself!"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cardMoreLetters"
+        android:layout_width="match_parent"
+        android:layout_height="235dp"
+        android:background="@drawable/rounded_yellow"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:layout_marginTop="26dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="55dp"
+                android:layout_height="55dp"
+                android:src="@drawable/ic_chart_temp"/>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginStart="20dp">
+
+                <TextView
+                    android:text="More Letters!"
+                    android:textColor="@color/white"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+                <TextView
+                    android:text="Choose your challenge.\nPick the word length you want to solve!"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:layout_marginTop="20dp">
+
+            <Button
+                android:id="@+id/btn6Letters"
+                android:layout_width="120dp"
+                android:layout_height="48dp"
+                android:layout_row="0"
+                android:layout_column="0"
+                android:layout_margin="8dp"
+                android:background="@drawable/rounded_black_button"
+                android:text="6 Letters"
+                android:textColor="@color/white"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btn7Letters"
+                android:text="7 Letters"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:background="@drawable/rounded_black_button"
+                android:layout_width="120dp"
+                android:layout_height="48dp"
+                android:layout_margin="8dp"/>
+
+            <Button
+                android:id="@+id/btn8Letters"
+                android:text="8 Letters"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:background="@drawable/rounded_black_button"
+                android:layout_width="120dp"
+                android:layout_height="48dp"
+                android:layout_margin="8dp"/>
+
+            <Button
+                android:id="@+id/btn9Letters"
+                android:text="9 Letters"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:background="@drawable/rounded_black_button"
+                android:layout_width="120dp"
+                android:layout_height="48dp"
+                android:layout_margin="8dp"/>
+        </GridLayout>
+    </LinearLayout>
+
+</LinearLayout>

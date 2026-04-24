@@ -1,0 +1,77 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black_bg"
+    android:orientation="vertical"
+    android:padding="48dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="WORDLE-TO-GO"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:textSize="28sp"
+        android:layout_marginTop="140dp"
+        android:layout_marginBottom="70dp"/>
+
+    <TextView
+        android:text="Email"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/edtLoginEmail"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Enter email address"
+        android:textColorHint="#D0D0D0"
+        android:textColor="@color/white"
+        android:background="@drawable/rounded_input"
+        android:paddingStart="16dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:text="Password"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/edtLoginPassword"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Enter password"
+        android:inputType="textPassword"
+        android:textColorHint="#D0D0D0"
+        android:textColor="@color/white"
+        android:background="@drawable/rounded_input"
+        android:paddingStart="16dp"
+        android:layout_marginTop="6dp"/>
+
+    <TextView
+        android:id="@+id/txtGoSignup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Don’t have an account? Sign up"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        android:layout_marginTop="10dp"/>
+
+    <Button
+        android:id="@+id/btnLogin"
+        android:layout_width="130dp"
+        android:layout_height="60dp"
+        android:text="Sign In"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/white"
+        android:background="@drawable/rounded_green"
+        android:layout_marginTop="28dp"/>
+
+</LinearLayout>

@@ -1,4 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/black_bg"
@@ -58,20 +60,22 @@
         android:id="@+id/txtGoSignup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Don’t have an account? Sign up"
+        android:text="@string/go_signup"
         android:textColor="@color/white"
         android:textSize="12sp"
         android:layout_marginTop="10dp"/>
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btnLogin"
         android:layout_width="130dp"
         android:layout_height="60dp"
+        android:layout_marginTop="28dp"
+        android:background="@drawable/rounded_green"
+        app:backgroundTint="@null"
         android:text="Sign In"
+        android:textColor="@color/white"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="@color/white"
-        android:background="@drawable/rounded_green"
-        android:layout_marginTop="28dp"/>
+        android:textAllCaps="false"/>
 
 </LinearLayout>

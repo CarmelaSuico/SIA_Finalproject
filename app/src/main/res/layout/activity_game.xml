@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/game_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black_bg">
+    android:background="@color/black_bg"
+    android:fitsSystemWindows="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -25,11 +27,12 @@
                 app:tint="@color/white" />
 
             <TextView
+                android:id="@+id/txtGameTitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:text="WORDLE-TO-GO #67"
+                android:text="WORDLE-TO-GO"
                 android:textColor="@color/white"
                 android:textSize="24sp"
                 android:textStyle="bold" />
@@ -56,6 +59,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
                 android:orientation="vertical"
                 android:paddingBottom="20dp">
 
@@ -65,79 +69,303 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="35dp"
-                    android:columnCount="5"
-                    android:rowCount="6">
+                    android:rowCount="6" />
 
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                    <TextView style="@style/GridCell" />
-                </GridLayout>
             </LinearLayout>
         </ScrollView>
 
-        <include layout="@layout/keyboard_layout"/>
+        <include
+            android:id="@+id/keyboardContainer"
+            layout="@layout/keyboard_layout" />
 
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/leaderboardPopup"
-        android:layout_width="280dp"
+        android:id="@+id/statisticsPopup"
+        android:layout_width="320dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:background="@drawable/leaderboard_bg"
+        android:background="@drawable/statistics_popup_bg"
         android:orientation="vertical"
-        android:padding="22dp"
-        android:visibility="gone">
+        android:padding="28dp"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
 
         <TextView
-            android:text="Leaderboard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Statistics"
             android:textColor="@color/white"
-            android:textSize="24sp"
+            android:textSize="26sp"
             android:textStyle="bold"
             android:gravity="center"
+            android:layout_marginBottom="20dp"/>
+
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="100"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Played"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="89"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Win %"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="12"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Streak"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="20"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Max"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+        </LinearLayout>
 
         <TextView
-            android:text="1   PlayerOne        2450\n2   WordMaster     2230\n3   LexiPro              1980\n4   PuzzleKing        1780\n5   You                    1500"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Guess Distribution"
             android:textColor="@color/white"
             android:textSize="16sp"
-            android:lineSpacingExtra="12dp"
-            android:layout_marginTop="20dp"
+            android:textStyle="bold"
+            android:layout_marginBottom="10dp"/>
+
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="1"
+                    android:textColor="@color/white"/>
+
+                <View
+                    android:layout_width="40dp"
+                    android:layout_height="20dp"
+                    android:background="@color/gray_box"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="@color/white"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="2"
+                    android:textColor="@color/white"/>
+
+                <View
+                    android:layout_width="80dp"
+                    android:layout_height="20dp"
+                    android:background="@color/gray_box"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="18"
+                    android:textColor="@color/white"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="3"
+                    android:textColor="@color/white"/>
+
+                <View
+                    android:layout_width="120dp"
+                    android:layout_height="20dp"
+                    android:background="@color/gray_box"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="104"
+                    android:textColor="@color/white"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="4"
+                    android:textColor="@color/white"/>
+
+                <View
+                    android:layout_width="180dp"
+                    android:layout_height="20dp"
+                    android:background="@color/green"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="161"
+                    android:textColor="@color/white"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="5"
+                    android:textColor="@color/white"/>
+
+                <View
+                    android:layout_width="130dp"
+                    android:layout_height="20dp"
+                    android:background="@color/gray_box"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="97"
+                    android:textColor="@color/white"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="6"
+                    android:textColor="@color/white"/>
+
+                <View
+                    android:layout_width="70dp"
+                    android:layout_height="20dp"
+                    android:background="@color/gray_box"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="17"
+                    android:textColor="@color/white"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+        </LinearLayout>
+
     </LinearLayout>
 
 </FrameLayout>

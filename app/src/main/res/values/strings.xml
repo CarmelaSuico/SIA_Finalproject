@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">wordle-to-go</string>
+    <string name="go_signup">Don’t have an account? <u><font color="#538D4E">Sign up</font></u></string>
+    <string name="go_login">Already have an account? <u><font color="#538D4E">Login</font></u></string>
+</resources>

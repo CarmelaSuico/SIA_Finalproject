@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "370082202843",
+    "project_id": "wordletogo",
+    "storage_bucket": "wordletogo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:370082202843:android:7db7395830e496827378fe",
+        "android_client_info": {
+          "package_name": "ph.edu.usc.wordle_to_go"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCn3HFMi-EWQnWEoKNOCltTljchC3SzaZY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

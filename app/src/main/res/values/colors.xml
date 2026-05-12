@@ -7,4 +7,9 @@
     <color name="white">#FFFFFF</color>
     <color name="dark_gray">#3A3A3C</color>
     <color name="border_gray">#3A3A3C</color>
+
+    <!-- Wordle Palette -->
+    <color name="wordle_green">#6AAA64</color>
+    <color name="wordle_yellow">#C9B458</color>
+    <color name="wordle_gray">#3A3A3C</color>
 </resources>

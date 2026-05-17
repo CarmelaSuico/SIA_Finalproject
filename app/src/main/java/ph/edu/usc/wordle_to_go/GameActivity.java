@@ -41,8 +41,8 @@ public class GameActivity extends AppCompatActivity {
     private final int maxRows = 6;
     private String targetWord = "";
 
-    // Public list of 5-letter words on GitHub
-    private final String WORD_LIST_URL = "https://raw.githubusercontent.com/charlesreid1/five-letter-words/master/sgb-words.txt";
+    // A single, guaranteed public database of English words
+    private final String MASTER_WORD_LIST_URL = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,43 +55,68 @@ public class GameActivity extends AppCompatActivity {
         wordGrid = findViewById(R.id.wordGrid);
         keyboardContainer = findViewById(R.id.keyboardContainer);
 
+        // Dynamically configures layout based on length intent (5, 6, 7, 8, or 9)
         wordLength = getIntent().getIntExtra("WORD_LENGTH", 5);
 
         createGrid(wordLength);
         setupKeyboard(keyboardContainer);
 
-        // Fetch the list and pick today's word
+        // Fetch the list and extract words matching the length criteria
         generateDailyWord();
 
         btnBack.setOnClickListener(v -> finish());
     }
 
+    private String getFallbackWord(int length) {
+        switch (length) {
+            case 6: return "PLANET";
+            case 7: return "JOURNEY";
+            case 8: return "NOTEBOOK";
+            case 9: return "CHALLENGE";
+            default: return "BOOKS";
+        }
+    }
+
     private void generateDailyWord() {
         OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder().url(WORD_LIST_URL).build();
+        Request request = new Request.Builder().url(MASTER_WORD_LIST_URL).build();
 
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> targetWord = "BOOKS"); // Backup
+                runOnUiThread(() -> targetWord = getFallbackWord(wordLength));
             }
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 if (response.isSuccessful()) {
                     String content = response.body().string();
-                    String[] allWords = content.split("\n");
+                    String[] allWords = content.split("\r?\n");
 
-                    // Get a "Seed" based on the Date
+                    // Filter out words matching the explicit required character length
+                    ArrayList<String> filteredWords = new ArrayList<>();
+                    for (String w : allWords) {
+                        String clean = w.trim();
+                        if (clean.length() == wordLength) {
+                            filteredWords.add(clean.toUpperCase());
+                        }
+                    }
+
+                    if (filteredWords.isEmpty()) {
+                        runOnUiThread(() -> targetWord = getFallbackWord(wordLength));
+                        return;
+                    }
+
+                    // System analysis seed logic for time-based synchronization across client instances
                     Calendar cal = Calendar.getInstance();
                     int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
                     int year = cal.get(Calendar.YEAR);
 
-                    // Simple Math to pick the same word for everyone today
-                    int index = (dayOfYear + year) % allWords.length;
-
-                    targetWord = allWords[index].trim().toUpperCase();
-                    Log.d("WORDLE_LOGIC", "Today's Word: " + targetWord);
+                    int index = (dayOfYear + year) % filteredWords.size();
+                    targetWord = filteredWords.get(index);
+                    Log.d("WORDLE_LOGIC", "Today's " + wordLength + "-letter Word: " + targetWord);
+                } else {
+                    runOnUiThread(() -> targetWord = getFallbackWord(wordLength));
                 }
             }
         });
@@ -111,7 +136,6 @@ public class GameActivity extends AppCompatActivity {
         }
         String guess = guessBuilder.toString().toUpperCase();
 
-        // Standard Dictionary Check (Using the Free API we used before)
         validateWithFreeDictionary(guess);
     }
 
@@ -145,7 +169,6 @@ public class GameActivity extends AppCompatActivity {
         int[] status = new int[wordLength];
         boolean[] targetUsed = new boolean[wordLength];
 
-        // 1. Greens
         for (int i = 0; i < wordLength; i++) {
             if (guess.charAt(i) == targetWord.charAt(i)) {
                 status[i] = 2;
@@ -153,7 +176,6 @@ public class GameActivity extends AppCompatActivity {
             }
         }
 
-        // 2. Yellows
         for (int i = 0; i < wordLength; i++) {
             if (status[i] == 2) continue;
             for (int j = 0; j < wordLength; j++) {
@@ -165,7 +187,6 @@ public class GameActivity extends AppCompatActivity {
             }
         }
 
-        // 3. UI Update
         for (int i = 0; i < wordLength; i++) {
             TextView cell = cells.get(currentRow * wordLength + i);
             String letter = String.valueOf(guess.charAt(i));
@@ -248,7 +269,7 @@ public class GameActivity extends AppCompatActivity {
             cell.setBackgroundResource(R.drawable.grid_cell);
             cell.setGravity(Gravity.CENTER);
             cell.setTextColor(Color.WHITE);
-            cell.setTextSize(22);
+            cell.setTextSize(wordLength > 7 ? 16 : 22);
             cell.setTypeface(null, Typeface.BOLD);
             cells.add(cell);
             wordGrid.addView(cell);
@@ -265,7 +286,11 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private int getCellSize(int wordLength) {
-        return (wordLength <= 5) ? dpToPx(50) : dpToPx(35);
+        if (wordLength <= 5) return dpToPx(50);
+        if (wordLength == 6) return dpToPx(44);
+        if (wordLength == 7) return dpToPx(38);
+        if (wordLength == 8) return dpToPx(33);
+        return dpToPx(29);
     }
 
     private int dpToPx(int dp) {

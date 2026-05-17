@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class HomeActivity extends AppCompatActivity {
 
-    LinearLayout cardDaily;
+    LinearLayout cardDaily, cardLeaderboard;
     Button btn6, btn7, btn8, btn9;
 
     @Override
@@ -18,12 +18,16 @@ public class HomeActivity extends AppCompatActivity {
         setContentView(R.layout.activity_home);
 
         cardDaily = findViewById(R.id.cardDaily);
+        cardLeaderboard = findViewById(R.id.cardLeaderboard);
         btn6 = findViewById(R.id.btn6Letters);
         btn7 = findViewById(R.id.btn7Letters);
         btn8 = findViewById(R.id.btn8Letters);
         btn9 = findViewById(R.id.btn9Letters);
 
         cardDaily.setOnClickListener(v -> openGame(5));
+        cardLeaderboard.setOnClickListener(v -> {
+            startActivity(new Intent(HomeActivity.this, LeaderboardActivity.class));
+        });
 
         btn6.setOnClickListener(v -> openGame(6));
         btn7.setOnClickListener(v -> openGame(7));

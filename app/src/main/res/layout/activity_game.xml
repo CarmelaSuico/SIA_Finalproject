@@ -37,6 +37,16 @@
                 android:textSize="24sp"
                 android:textStyle="bold" />
 
+            <TextView
+                android:id="@+id/txtStreakDisplay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="🔥 0"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
             <ImageView
                 android:id="@+id/btnLeaderboard"
                 android:layout_width="30dp"

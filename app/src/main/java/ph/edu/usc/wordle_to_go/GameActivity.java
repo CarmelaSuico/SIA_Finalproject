@@ -12,7 +12,20 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -40,6 +53,9 @@ public class GameActivity extends AppCompatActivity {
     private int currentCol = 0;
     private final int maxRows = 6;
     private String targetWord = "";
+    private boolean isGameOver = false;
+    private GameStateManager gameStateManager;
+    private TextView txtStreakDisplay;
 
     // A single, guaranteed public database of English words
     private final String MASTER_WORD_LIST_URL = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt";
@@ -54,6 +70,11 @@ public class GameActivity extends AppCompatActivity {
         statisticsPopup = findViewById(R.id.statisticsPopup);
         wordGrid = findViewById(R.id.wordGrid);
         keyboardContainer = findViewById(R.id.keyboardContainer);
+        txtStreakDisplay = findViewById(R.id.txtStreakDisplay);
+
+        gameStateManager = new GameStateManager(this);
+        gameStateManager.resetStreakIfMissed();
+        updateStreakUI();
 
         // Dynamically configures layout based on length intent (5, 6, 7, 8, or 9)
         wordLength = getIntent().getIntExtra("WORD_LENGTH", 5);
@@ -65,6 +86,72 @@ public class GameActivity extends AppCompatActivity {
         generateDailyWord();
 
         btnBack.setOnClickListener(v -> finish());
+        btnLeaderboard.setOnClickListener(v -> {
+            startActivity(new Intent(this, LeaderboardActivity.class));
+        });
+    }
+
+    private void updateStreakUI() {
+        txtStreakDisplay.setText("🔥 " + gameStateManager.getStreak());
+    }
+
+    private void restoreSavedState() {
+        String savedData = gameStateManager.getSavedGridData(wordLength);
+        if (savedData != null) {
+            try {
+                JSONArray array = new JSONArray(savedData);
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject obj = array.getJSONObject(i);
+                    String letter = obj.getString("l");
+                    int status = obj.getInt("s");
+                    TextView cell = cells.get(i);
+                    cell.setText(letter.trim());
+                    applyCellColor(cell, letter, status);
+                }
+                
+                // Determine current row/col
+                isGameOver = gameStateManager.isGameFinishedToday(wordLength);
+                if (isGameOver) {
+                    currentRow = maxRows; // Lock input
+                } else {
+                    // Find first empty row
+                    for (int r = 0; r < maxRows; r++) {
+                        boolean rowEmpty = true;
+                        for (int c = 0; c < wordLength; c++) {
+                            if (!cells.get(r * wordLength + c).getText().toString().isEmpty()) {
+                                rowEmpty = false;
+                                break;
+                            }
+                        }
+                        if (rowEmpty) {
+                            currentRow = r;
+                            break;
+                        }
+                        if (r == maxRows - 1) currentRow = maxRows;
+                    }
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void applyCellColor(TextView cell, String letter, int status) {
+        int color;
+        if (status == 2) {
+            cell.setBackgroundResource(R.drawable.rounded_green);
+            color = Color.parseColor("#6AAA64");
+        } else if (status == 1) {
+            cell.setBackgroundResource(R.drawable.rounded_yellow);
+            color = Color.parseColor("#C9B458");
+        } else if (status == 0) {
+            cell.setBackgroundResource(R.drawable.rounded_gray);
+            color = Color.parseColor("#3A3A3C");
+        } else {
+            return;
+        }
+        cell.setTag(status);
+        updateKeyboardColor(letter, status, color);
     }
 
     private String getFallbackWord(int length) {
@@ -115,6 +202,8 @@ public class GameActivity extends AppCompatActivity {
                     int index = (dayOfYear + year) % filteredWords.size();
                     targetWord = filteredWords.get(index);
                     Log.d("WORDLE_LOGIC", "Today's " + wordLength + "-letter Word: " + targetWord);
+                    
+                    runOnUiThread(GameActivity.this::restoreSavedState);
                 } else {
                     runOnUiThread(() -> targetWord = getFallbackWord(wordLength));
                 }
@@ -123,6 +212,7 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void submitGuess() {
+        if (isGameOver) return;
         if (targetWord.isEmpty()) return;
 
         if (currentCol < wordLength) {
@@ -190,29 +280,75 @@ public class GameActivity extends AppCompatActivity {
         for (int i = 0; i < wordLength; i++) {
             TextView cell = cells.get(currentRow * wordLength + i);
             String letter = String.valueOf(guess.charAt(i));
-            int color;
-
-            if (status[i] == 2) {
-                cell.setBackgroundResource(R.drawable.rounded_green);
-                color = Color.parseColor("#6AAA64");
-            } else if (status[i] == 1) {
-                cell.setBackgroundResource(R.drawable.rounded_yellow);
-                color = Color.parseColor("#C9B458");
-            } else {
-                cell.setBackgroundResource(R.drawable.rounded_gray);
-                color = Color.parseColor("#3A3A3C");
-            }
-            updateKeyboardColor(letter, status[i], color);
+            applyCellColor(cell, letter, status[i]);
         }
 
         if (guess.equalsIgnoreCase(targetWord)) {
+            isGameOver = true;
             Toast.makeText(this, "Splendid!", Toast.LENGTH_LONG).show();
+            gameStateManager.updateStreak();
+            updateStreakUI();
+            saveGridState(true);
+            submitScore(currentRow + 1);
             return;
         }
 
         currentRow++;
         currentCol = 0;
-        if (currentRow == maxRows) Toast.makeText(this, "The word was: " + targetWord, Toast.LENGTH_LONG).show();
+        if (currentRow == maxRows) {
+            isGameOver = true;
+            Toast.makeText(this, "The word was: " + targetWord, Toast.LENGTH_LONG).show();
+            saveGridState(true);
+        } else {
+            saveGridState(false);
+        }
+    }
+
+    private void saveGridState(boolean finished) {
+        JSONArray array = new JSONArray();
+        for (TextView cell : cells) {
+            JSONObject obj = new JSONObject();
+            try {
+                obj.put("l", cell.getText().toString());
+                Object tag = cell.getTag();
+                obj.put("s", (tag instanceof Integer) ? (Integer) tag : -1);
+                array.put(obj);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        gameStateManager.saveGridState(wordLength, array.toString(), finished);
+    }
+
+    private void submitScore(int attempts) {
+        String uid = FirebaseAuth.getInstance().getUid();
+        if (uid == null) return;
+
+        String dbUrl = "https://wordletogo-default-rtdb.asia-southeast1.firebasedatabase.app/";
+        FirebaseDatabase.getInstance(dbUrl).getReference("Users").child(uid).child("username")
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        String username = snapshot.getValue(String.class);
+                        if (username != null) {
+                            LeaderboardActivity.LeaderboardEntry entry = new LeaderboardActivity.LeaderboardEntry(
+                                    username,
+                                    attempts,
+                                    gameStateManager.getTodayDate(),
+                                    System.currentTimeMillis()
+                            );
+                            FirebaseFirestore.getInstance().collection("leaderboard")
+                                    .add(entry)
+                                    .addOnSuccessListener(documentReference -> {
+                                        Toast.makeText(GameActivity.this, "Score submitted!", Toast.LENGTH_SHORT).show();
+                                        startActivity(new Intent(GameActivity.this, LeaderboardActivity.class));
+                                    });
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {}
+                });
     }
 
     private void updateKeyboardColor(String letter, int status, int color) {
@@ -240,6 +376,7 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void handleKey(String key) {
+        if (isGameOver) return;
         if (key.equals("ENTER")) submitGuess();
         else if (key.equals("⌫")) {
             if (currentCol > 0) {

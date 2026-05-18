@@ -11,6 +11,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser; // Added FirebaseUser import
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -18,6 +19,17 @@ public class LoginActivity extends AppCompatActivity {
     Button btnLogin;
     TextView txtGoSignup;
     FirebaseAuth mAuth;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // FIX 3: If user is already logged in, redirect to HomeActivity
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        if (currentUser != null) {
+            startActivity(new Intent(LoginActivity.this, HomeActivity.class));
+            finish();
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

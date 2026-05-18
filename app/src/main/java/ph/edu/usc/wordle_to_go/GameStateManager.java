@@ -15,9 +15,19 @@ public class GameStateManager {
     private static final String KEY_GAME_FINISHED = "game_finished_";
 
     private final SharedPreferences prefs;
+    private final String uid; // UID for scoping local data
 
-    public GameStateManager(Context context) {
+    public GameStateManager(Context context, String uid) {
         this.prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        this.uid = uid; // Initialize with current user's UID
+    }
+
+    /**
+     * FIX 1: Helper to prefix SharedPreferences keys with the user's UID.
+     * This ensures different users on the same device have separate game states.
+     */
+    private String getScopedKey(String key) {
+        return uid + "_" + key;
     }
 
     public String getTodayDate() {
@@ -31,12 +41,14 @@ public class GameStateManager {
     }
 
     public int getStreak() {
-        return prefs.getInt(KEY_STREAK, 0);
+        // UID-scoping change
+        return prefs.getInt(getScopedKey(KEY_STREAK), 0);
     }
 
     public void updateStreak() {
         String today = getTodayDate();
-        String lastDate = prefs.getString(KEY_LAST_DATE, "");
+        // UID-scoping change
+        String lastDate = prefs.getString(getScopedKey(KEY_LAST_DATE), "");
 
         if (today.equals(lastDate)) {
             // Already played today, don't increment streak again
@@ -51,33 +63,39 @@ public class GameStateManager {
         }
 
         prefs.edit()
-                .putInt(KEY_STREAK, currentStreak)
-                .putString(KEY_LAST_DATE, today)
+                // UID-scoping changes
+                .putInt(getScopedKey(KEY_STREAK), currentStreak)
+                .putString(getScopedKey(KEY_LAST_DATE), today)
                 .apply();
     }
 
     public void resetStreakIfMissed() {
         String today = getTodayDate();
-        String lastDate = prefs.getString(KEY_LAST_DATE, "");
+        // UID-scoping change
+        String lastDate = prefs.getString(getScopedKey(KEY_LAST_DATE), "");
 
         if (!today.equals(lastDate) && !getYesterdayDate().equals(lastDate) && !lastDate.isEmpty()) {
-            prefs.edit().putInt(KEY_STREAK, 0).apply();
+            // UID-scoping change
+            prefs.edit().putInt(getScopedKey(KEY_STREAK), 0).apply();
         }
     }
 
     public void saveGridState(int wordLength, String gridJson, boolean finished) {
         String today = getTodayDate();
         prefs.edit()
-                .putString(KEY_GRID_DATA + today + "_" + wordLength, gridJson)
-                .putBoolean(KEY_GAME_FINISHED + today + "_" + wordLength, finished)
+                // UID-scoping changes
+                .putString(getScopedKey(KEY_GRID_DATA + today + "_" + wordLength), gridJson)
+                .putBoolean(getScopedKey(KEY_GAME_FINISHED + today + "_" + wordLength), finished)
                 .apply();
     }
 
     public String getSavedGridData(int wordLength) {
-        return prefs.getString(KEY_GRID_DATA + getTodayDate() + "_" + wordLength, null);
+        // UID-scoping change
+        return prefs.getString(getScopedKey(KEY_GRID_DATA + getTodayDate() + "_" + wordLength), null);
     }
 
     public boolean isGameFinishedToday(int wordLength) {
-        return prefs.getBoolean(KEY_GAME_FINISHED + getTodayDate() + "_" + wordLength, false);
+        // UID-scoping change
+        return prefs.getBoolean(getScopedKey(KEY_GAME_FINISHED + getTodayDate() + "_" + wordLength), false);
     }
 }

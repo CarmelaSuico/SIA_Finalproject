@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
@@ -28,6 +29,14 @@ public class LeaderboardActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // FIX 3: Redirect to login if user is not authenticated
+        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
+            startActivity(new android.content.Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
         setContentView(R.layout.activity_leaderboard);
 
         findViewById(R.id.btnBackLeaderboard).setOnClickListener(v -> finish());
@@ -60,6 +69,7 @@ public class LeaderboardActivity extends AppCompatActivity {
     }
 
     public static class LeaderboardEntry {
+        public String uid; // Added UID field for FIX 2
         public String username;
         public int attempts;
         public String date;
@@ -67,7 +77,8 @@ public class LeaderboardActivity extends AppCompatActivity {
 
         public LeaderboardEntry() {} // Required for Firestore
 
-        public LeaderboardEntry(String username, int attempts, String date, long timestamp) {
+        public LeaderboardEntry(String uid, String username, int attempts, String date, long timestamp) {
+            this.uid = uid;
             this.username = username;
             this.attempts = attempts;
             this.date = date;

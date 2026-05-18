@@ -210,5 +210,19 @@
                     android:textAllCaps="false" />
             </GridLayout>
         </LinearLayout>
+
+        <!-- FIX 3: Added Logout Button -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnLogout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="32dp"
+            android:background="@drawable/rounded_gray"
+            app:backgroundTint="@null"
+            android:text="Logout"
+            android:textColor="@color/white"
+            android:textStyle="bold" />
+
     </LinearLayout>
 </ScrollView>

@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser; // Added FirebaseUser import
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
@@ -63,6 +64,15 @@ public class GameActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // FIX 3: Redirect to login if user is not authenticated
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
         setContentView(R.layout.activity_game);
 
         btnBack = findViewById(R.id.btnBack);
@@ -72,7 +82,8 @@ public class GameActivity extends AppCompatActivity {
         keyboardContainer = findViewById(R.id.keyboardContainer);
         txtStreakDisplay = findViewById(R.id.txtStreakDisplay);
 
-        gameStateManager = new GameStateManager(this);
+        // FIX 1: Pass user UID to GameStateManager to scope SharedPreferences keys
+        gameStateManager = new GameStateManager(this, user.getUid());
         gameStateManager.resetStreakIfMissed();
         updateStreakUI();
 
@@ -102,10 +113,10 @@ public class GameActivity extends AppCompatActivity {
                 JSONArray array = new JSONArray(savedData);
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject obj = array.getJSONObject(i);
-                    String letter = obj.getString("l");
+                    String letter = obj.getString("l").trim(); // Trimmed here
                     int status = obj.getInt("s");
                     TextView cell = cells.get(i);
-                    cell.setText(letter.trim());
+                    cell.setText(letter);
                     applyCellColor(cell, letter, status);
                 }
                 
@@ -331,15 +342,21 @@ public class GameActivity extends AppCompatActivity {
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
                         String username = snapshot.getValue(String.class);
                         if (username != null) {
+                            String today = gameStateManager.getTodayDate();
+                            // FIX 2: Updated LeaderboardEntry to include UID
                             LeaderboardActivity.LeaderboardEntry entry = new LeaderboardActivity.LeaderboardEntry(
+                                    uid,
                                     username,
                                     attempts,
-                                    gameStateManager.getTodayDate(),
+                                    today,
                                     System.currentTimeMillis()
                             );
+                            
+                            // FIX 2: Use scoped document ID "{uid}_{date}"
                             FirebaseFirestore.getInstance().collection("leaderboard")
-                                    .add(entry)
-                                    .addOnSuccessListener(documentReference -> {
+                                    .document(uid + "_" + today)
+                                    .set(entry)
+                                    .addOnSuccessListener(aVoid -> {
                                         Toast.makeText(GameActivity.this, "Score submitted!", Toast.LENGTH_SHORT).show();
                                         startActivity(new Intent(GameActivity.this, LeaderboardActivity.class));
                                     });
@@ -352,12 +369,16 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void updateKeyboardColor(String letter, int status, int color) {
-        Integer currentBest = keyState.get(letter);
+        if (letter == null || letter.trim().isEmpty()) return;
+        String cleanLetter = letter.trim().toUpperCase();
+
+        Integer currentBest = keyState.get(cleanLetter);
         if (currentBest == null || status > currentBest) {
-            keyState.put(letter, status);
-            View keyView = findKeyView(keyboardContainer, letter);
-            if (keyView != null) {
-                keyView.getBackground().setTint(color);
+            keyState.put(cleanLetter, status);
+            View keyView = findKeyView(keyboardContainer, cleanLetter);
+            if (keyView != null && keyView.getBackground() != null) {
+                // Mutate the drawable to ensure tinting only affects this specific key
+                keyView.getBackground().mutate().setTint(color);
             }
         }
     }

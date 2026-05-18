@@ -17,7 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser; // Added FirebaseUser import
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class GameActivity extends AppCompatActivity {
 
@@ -49,6 +50,9 @@ public class GameActivity extends AppCompatActivity {
     private ArrayList<TextView> cells = new ArrayList<>();
     private HashMap<String, Integer> keyState = new HashMap<>();
 
+    // Cache memory data structure for O(1) instantaneous guess validation
+    private HashSet<String> validWordsCache = new HashSet<>();
+
     private int wordLength;
     private int currentRow = 0;
     private int currentCol = 0;
@@ -58,7 +62,6 @@ public class GameActivity extends AppCompatActivity {
     private GameStateManager gameStateManager;
     private TextView txtStreakDisplay;
 
-    // A single, guaranteed public database of English words
     private final String MASTER_WORD_LIST_URL = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt";
 
     @Override
@@ -87,13 +90,12 @@ public class GameActivity extends AppCompatActivity {
         gameStateManager.resetStreakIfMissed();
         updateStreakUI();
 
-        // Dynamically configures layout based on length intent (5, 6, 7, 8, or 9)
         wordLength = getIntent().getIntExtra("WORD_LENGTH", 5);
 
         createGrid(wordLength);
         setupKeyboard(keyboardContainer);
 
-        // Fetch the list and extract words matching the length criteria
+        // Fetch the list, parse it into the HashSet cache, and pick today's target word
         generateDailyWord();
 
         btnBack.setOnClickListener(v -> finish());
@@ -113,19 +115,17 @@ public class GameActivity extends AppCompatActivity {
                 JSONArray array = new JSONArray(savedData);
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject obj = array.getJSONObject(i);
-                    String letter = obj.getString("l").trim(); // Trimmed here
+                    String letter = obj.getString("l").trim();
                     int status = obj.getInt("s");
                     TextView cell = cells.get(i);
                     cell.setText(letter);
                     applyCellColor(cell, letter, status);
                 }
-                
-                // Determine current row/col
+
                 isGameOver = gameStateManager.isGameFinishedToday(wordLength);
                 if (isGameOver) {
-                    currentRow = maxRows; // Lock input
+                    currentRow = maxRows;
                 } else {
-                    // Find first empty row
                     for (int r = 0; r < maxRows; r++) {
                         boolean rowEmpty = true;
                         for (int c = 0; c < wordLength; c++) {
@@ -191,12 +191,15 @@ public class GameActivity extends AppCompatActivity {
                     String content = response.body().string();
                     String[] allWords = content.split("\r?\n");
 
-                    // Filter out words matching the explicit required character length
                     ArrayList<String> filteredWords = new ArrayList<>();
+                    HashSet<String> tempCache = new HashSet<>();
+
+                    // Single-pass optimization: populate our data cache and selection array simultaneously
                     for (String w : allWords) {
-                        String clean = w.trim();
+                        String clean = w.trim().toUpperCase();
                         if (clean.length() == wordLength) {
-                            filteredWords.add(clean.toUpperCase());
+                            filteredWords.add(clean);
+                            tempCache.add(clean);
                         }
                     }
 
@@ -205,7 +208,9 @@ public class GameActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // System analysis seed logic for time-based synchronization across client instances
+                    // Save the temporary set into our global lookup cache memory
+                    validWordsCache = tempCache;
+
                     Calendar cal = Calendar.getInstance();
                     int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
                     int year = cal.get(Calendar.YEAR);
@@ -213,7 +218,7 @@ public class GameActivity extends AppCompatActivity {
                     int index = (dayOfYear + year) % filteredWords.size();
                     targetWord = filteredWords.get(index);
                     Log.d("WORDLE_LOGIC", "Today's " + wordLength + "-letter Word: " + targetWord);
-                    
+
                     runOnUiThread(GameActivity.this::restoreSavedState);
                 } else {
                     runOnUiThread(() -> targetWord = getFallbackWord(wordLength));
@@ -237,33 +242,12 @@ public class GameActivity extends AppCompatActivity {
         }
         String guess = guessBuilder.toString().toUpperCase();
 
-        validateWithFreeDictionary(guess);
-    }
-
-    private void validateWithFreeDictionary(String guess) {
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder()
-                .url("https://api.dictionaryapi.dev/api/v2/entries/en/" + guess.toLowerCase())
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> Toast.makeText(GameActivity.this, "Network Error", Toast.LENGTH_SHORT).show());
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                final boolean isValid = response.isSuccessful();
-                runOnUiThread(() -> {
-                    if (isValid) {
-                        applyColoringAndMove(guess);
-                    } else {
-                        Toast.makeText(GameActivity.this, "Not a real word!", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        });
+        // OFFLINE VALIDATION LOGIC: Check the locally hosted GitHub dataset memory cache
+        if (validWordsCache.contains(guess)) {
+            applyColoringAndMove(guess);
+        } else {
+            Toast.makeText(this, "Not a real word!", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void applyColoringAndMove(String guess) {
@@ -343,7 +327,6 @@ public class GameActivity extends AppCompatActivity {
                         String username = snapshot.getValue(String.class);
                         if (username != null) {
                             String today = gameStateManager.getTodayDate();
-                            // FIX 2: Updated LeaderboardEntry to include UID
                             LeaderboardActivity.LeaderboardEntry entry = new LeaderboardActivity.LeaderboardEntry(
                                     uid,
                                     username,
@@ -351,8 +334,7 @@ public class GameActivity extends AppCompatActivity {
                                     today,
                                     System.currentTimeMillis()
                             );
-                            
-                            // FIX 2: Use scoped document ID "{uid}_{date}"
+
                             FirebaseFirestore.getInstance().collection("leaderboard")
                                     .document(uid + "_" + today)
                                     .set(entry)
@@ -377,7 +359,6 @@ public class GameActivity extends AppCompatActivity {
             keyState.put(cleanLetter, status);
             View keyView = findKeyView(keyboardContainer, cleanLetter);
             if (keyView != null && keyView.getBackground() != null) {
-                // Mutate the drawable to ensure tinting only affects this specific key
                 keyView.getBackground().mutate().setTint(color);
             }
         }

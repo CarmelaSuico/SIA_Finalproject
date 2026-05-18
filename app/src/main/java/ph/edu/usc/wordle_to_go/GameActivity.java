@@ -22,7 +22,6 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.firestore.FirebaseFirestore;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -83,13 +82,18 @@ public class GameActivity extends AppCompatActivity {
         keyboardContainer = findViewById(R.id.keyboardContainer);
         txtStreakDisplay = findViewById(R.id.txtStreakDisplay);
 
-        // Scope the State Manager to the active user's UID to isolate streak histories
-        gameStateManager = new GameStateManager(this, user.getUid());
-        gameStateManager.resetStreakIfMissed();
-        updateStreakUI();
-
         // Configures structural dimension specs dynamically (5, 6, 7, 8, or 9 letters)
         wordLength = getIntent().getIntExtra("WORD_LENGTH", 5);
+
+        // FIX: Only initialize and run streak operations if playing the official 5-letter game
+        if (wordLength == 5) {
+            gameStateManager = new GameStateManager(this, user.getUid());
+            gameStateManager.resetStreakIfMissed();
+            updateStreakUI();
+        } else {
+            // Hide or clear the streak icon entirely for casual sandbox play modes
+            txtStreakDisplay.setVisibility(View.GONE);
+        }
 
         createGrid(wordLength);
         setupKeyboard(keyboardContainer);
@@ -104,10 +108,16 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void updateStreakUI() {
-        txtStreakDisplay.setText("🔥 " + gameStateManager.getStreak());
+        if (gameStateManager != null && wordLength == 5) {
+            txtStreakDisplay.setText("🔥 " + gameStateManager.getStreak());
+            txtStreakDisplay.setVisibility(View.VISIBLE);
+        }
     }
 
     private void restoreSavedState() {
+        // Only attempt to read saved grid files for the active 5-letter channel
+        if (wordLength != 5 || gameStateManager == null) return;
+
         String savedData = gameStateManager.getSavedGridData(wordLength);
         if (savedData != null) {
             try {
@@ -219,7 +229,11 @@ public class GameActivity extends AppCompatActivity {
                     targetWord = filteredWords.get(index);
                     Log.d("WORDLE_LOGIC", "Today's " + wordLength + "-letter Word: " + targetWord);
 
-                    runOnUiThread(GameActivity.this::restoreSavedState);
+                    runOnUiThread(() -> {
+                        if (wordLength == 5) {
+                            restoreSavedState();
+                        }
+                    });
                 } else {
                     runOnUiThread(() -> targetWord = getFallbackWord(wordLength));
                 }
@@ -285,10 +299,18 @@ public class GameActivity extends AppCompatActivity {
         if (guess.equalsIgnoreCase(targetWord)) {
             isGameOver = true;
             Toast.makeText(this, "Splendid!", Toast.LENGTH_LONG).show();
-            gameStateManager.updateStreak();
-            updateStreakUI();
-            saveGridState(true);
-            submitScore(currentRow + 1);
+
+            // If playing the official 5-letter variant, handle competitive tracking and sync
+            if (wordLength == 5 && gameStateManager != null) {
+                gameStateManager.updateStreak();
+                updateStreakUI();
+                saveGridState(true);
+                submitScore(currentRow + 1);
+            } else {
+                // FIXED: Casual Mode (6-9 letters) now simply stops here.
+                // It shows "Splendid!" but stays on the game page without redirecting.
+                currentRow = maxRows; // Lock the grid input keys from further typing
+            }
             return;
         }
 
@@ -299,14 +321,21 @@ public class GameActivity extends AppCompatActivity {
         if (currentRow == maxRows) {
             isGameOver = true;
             Toast.makeText(this, "The word was: " + targetWord, Toast.LENGTH_LONG).show();
-            gameStateManager.setDailyAnswer(gameStateManager.getTodayDate(), 0); // Mark today as failed (0)
-            saveGridState(true);
+
+            if (wordLength == 5 && gameStateManager != null) {
+                gameStateManager.setDailyAnswer(gameStateManager.getTodayDate(), 0); // Mark today as failed (0)
+                saveGridState(true);
+            }
         } else {
-            saveGridState(false);
+            if (wordLength == 5 && gameStateManager != null) {
+                saveGridState(false);
+            }
         }
     }
 
     private void saveGridState(boolean finished) {
+        if (wordLength != 5 || gameStateManager == null) return;
+
         JSONArray array = new JSONArray();
         for (TextView cell : cells) {
             JSONObject obj = new JSONObject();
@@ -323,6 +352,9 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void submitScore(int attempts) {
+        // This execution protection check guarantees that non-standard game lengths fail immediately if they call this method
+        if (wordLength != 5) return;
+
         String uid = FirebaseAuth.getInstance().getUid();
         if (uid == null) {
             Log.e("WORDLE_SYNC", "User UID is null! Cannot submit score.");
@@ -332,7 +364,6 @@ public class GameActivity extends AppCompatActivity {
         String regionalDbUrl = "https://wordletogo-default-rtdb.asia-southeast1.firebasedatabase.app/";
         FirebaseDatabase dbInstance = FirebaseDatabase.getInstance(regionalDbUrl);
 
-        // 1. Fetch the user's registered username from the profile node path directory
         dbInstance.getReference("Users").child(uid)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
@@ -345,7 +376,6 @@ public class GameActivity extends AppCompatActivity {
                         String today = gameStateManager.getTodayDate();
                         int activeStreak = gameStateManager.getStreak();
 
-                        // 2. Package all data properties directly into a standard Map payload allocation
                         java.util.HashMap<String, Object> entry = new java.util.HashMap<>();
                         entry.put("uid", uid);
                         entry.put("username", username);
@@ -356,14 +386,12 @@ public class GameActivity extends AppCompatActivity {
 
                         Log.d("WORDLE_SYNC", "Writing score to RTDB path: leaderboard/" + today + "/" + uid);
 
-                        // 3. Save directly to your active Realtime Database tree paths node directory
                         dbInstance.getReference("leaderboard").child(today).child(uid)
                                 .setValue(entry)
                                 .addOnSuccessListener(aVoid -> {
                                     Log.d("WORDLE_SYNC", "RTDB Leaderboard table entry updated successfully!");
                                     Toast.makeText(GameActivity.this, "Score and Streak synced to Cloud!", Toast.LENGTH_SHORT).show();
 
-                                    // Route cleanly over to the scoreboard dashboard presentation activity layout wrapper
                                     Intent intent = new Intent(GameActivity.this, LeaderboardActivity.class);
                                     startActivity(intent);
                                     finish();

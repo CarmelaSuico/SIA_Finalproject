@@ -8,26 +8,21 @@ import java.util.Date;
 import java.util.Locale;
 
 public class GameStateManager {
-    private static final String PREF_NAME = "WordlePrefs";
+    private static final String PREF_NAME = "WordlePrefs_"; // Base preference name template
     private static final String KEY_STREAK = "streak_count";
     private static final String KEY_LAST_DATE = "last_played_date";
+    private static final String KEY_DAILY_ANSWER = "daily_answer_";
     private static final String KEY_GRID_DATA = "grid_data_";
     private static final String KEY_GAME_FINISHED = "game_finished_";
 
     private final SharedPreferences prefs;
-    private final String uid; // UID for scoping local data
+    private final String userId; // Scopes local caching storage files to the active user session
 
-    public GameStateManager(Context context, String uid) {
-        this.prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        this.uid = uid; // Initialize with current user's UID
-    }
-
-    /**
-     * FIX 1: Helper to prefix SharedPreferences keys with the user's UID.
-     * This ensures different users on the same device have separate game states.
-     */
-    private String getScopedKey(String key) {
-        return uid + "_" + key;
+    // FIXED: Constructor now accepts both Context and UID string parameters
+    public GameStateManager(Context context, String userId) {
+        this.userId = userId;
+        // Scopes the SharedPreferences file name explicitly to the logged-in user: WordlePrefs_YOURUID
+        this.prefs = context.getSharedPreferences(PREF_NAME + userId, Context.MODE_PRIVATE);
     }
 
     public String getTodayDate() {
@@ -41,61 +36,92 @@ public class GameStateManager {
     }
 
     public int getStreak() {
-        // UID-scoping change
-        return prefs.getInt(getScopedKey(KEY_STREAK), 0);
+        return prefs.getInt(KEY_STREAK, 0);
     }
 
+    /**
+     * Increments the streak upon a successful win.
+     * Marks the current day's answer status as 1.
+     */
     public void updateStreak() {
         String today = getTodayDate();
-        // UID-scoping change
-        String lastDate = prefs.getString(getScopedKey(KEY_LAST_DATE), "");
+        String yesterday = getYesterdayDate();
+        String lastDate = prefs.getString(KEY_LAST_DATE, "");
 
-        if (today.equals(lastDate)) {
-            // Already played today, don't increment streak again
+        // Already solved today, safe-guard against multiple updates
+        if (getDailyAnswer(today) == 1) {
             return;
         }
 
+        setDailyAnswer(today, 1);
         int currentStreak = getStreak();
-        if (getYesterdayDate().equals(lastDate)) {
-            currentStreak++;
+
+        if (lastDate.isEmpty()) {
+            currentStreak = 1;
+        } else if (lastDate.equals(yesterday)) {
+            // Check if they played yesterday but failed (0 status). If so, reset to 1 instead.
+            if (getDailyAnswer(yesterday) == 0) {
+                currentStreak = 1;
+            } else {
+                currentStreak++;
+            }
+        } else if (lastDate.equals(today)) {
+            return;
         } else {
+            // Gap detected (skipped days)
             currentStreak = 1;
         }
 
         prefs.edit()
-                // UID-scoping changes
-                .putInt(getScopedKey(KEY_STREAK), currentStreak)
-                .putString(getScopedKey(KEY_LAST_DATE), today)
+                .putInt(KEY_STREAK, currentStreak)
+                .putString(KEY_LAST_DATE, today)
                 .apply();
     }
 
+    /**
+     * Checks temporal integrity. If a whole day was skipped, or they explicitly
+     * failed yesterday (dailyAnswer = 0), the current streak drops to zero.
+     */
     public void resetStreakIfMissed() {
         String today = getTodayDate();
-        // UID-scoping change
-        String lastDate = prefs.getString(getScopedKey(KEY_LAST_DATE), "");
+        String yesterday = getYesterdayDate();
+        String lastDate = prefs.getString(KEY_LAST_DATE, "");
 
-        if (!today.equals(lastDate) && !getYesterdayDate().equals(lastDate) && !lastDate.isEmpty()) {
-            // UID-scoping change
-            prefs.edit().putInt(getScopedKey(KEY_STREAK), 0).apply();
+        if (lastDate.isEmpty()) return;
+
+        // Condition 1: Skipped a day entirely
+        if (!lastDate.equals(today) && !lastDate.equals(yesterday)) {
+            prefs.edit().putInt(KEY_STREAK, 0).apply();
+            return;
         }
+
+        // Condition 2: Played yesterday but failed to find the target word (0)
+        if (lastDate.equals(yesterday) && getDailyAnswer(yesterday) == 0) {
+            prefs.edit().putInt(KEY_STREAK, 0).apply();
+        }
+    }
+
+    public void setDailyAnswer(String date, int status) {
+        prefs.edit().putInt(KEY_DAILY_ANSWER + date, status).apply();
+    }
+
+    public int getDailyAnswer(String date) {
+        return prefs.getInt(KEY_DAILY_ANSWER + date, 0); // Defaults to 0 (Not answered / failed)
     }
 
     public void saveGridState(int wordLength, String gridJson, boolean finished) {
         String today = getTodayDate();
         prefs.edit()
-                // UID-scoping changes
-                .putString(getScopedKey(KEY_GRID_DATA + today + "_" + wordLength), gridJson)
-                .putBoolean(getScopedKey(KEY_GAME_FINISHED + today + "_" + wordLength), finished)
+                .putString(KEY_GRID_DATA + today + "_" + wordLength, gridJson)
+                .putBoolean(KEY_GAME_FINISHED + today + "_" + wordLength, finished)
                 .apply();
     }
 
     public String getSavedGridData(int wordLength) {
-        // UID-scoping change
-        return prefs.getString(getScopedKey(KEY_GRID_DATA + getTodayDate() + "_" + wordLength), null);
+        return prefs.getString(KEY_GRID_DATA + getTodayDate() + "_" + wordLength, null);
     }
 
     public boolean isGameFinishedToday(int wordLength) {
-        // UID-scoping change
-        return prefs.getBoolean(getScopedKey(KEY_GAME_FINISHED + getTodayDate() + "_" + wordLength), false);
+        return prefs.getBoolean(KEY_GAME_FINISHED + getTodayDate() + "_" + wordLength, false);
     }
 }

@@ -43,14 +43,13 @@ import java.util.HashSet;
 public class GameActivity extends AppCompatActivity {
 
     private View btnBack, btnLeaderboard;
-    private LinearLayout statisticsPopup;
     private GridLayout wordGrid;
     private ViewGroup keyboardContainer;
 
     private ArrayList<TextView> cells = new ArrayList<>();
     private HashMap<String, Integer> keyState = new HashMap<>();
 
-    // Cache memory data structure for O(1) instantaneous guess validation
+    // High-performance cache lookup memory structure for instantaneous guess validation
     private HashSet<String> validWordsCache = new HashSet<>();
 
     private int wordLength;
@@ -68,7 +67,7 @@ public class GameActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // FIX 3: Redirect to login if user is not authenticated
+        // Security Checkpoint: Route back to Login if the user instance token is empty
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
             startActivity(new Intent(this, LoginActivity.class));
@@ -80,22 +79,22 @@ public class GameActivity extends AppCompatActivity {
 
         btnBack = findViewById(R.id.btnBack);
         btnLeaderboard = findViewById(R.id.btnLeaderboard);
-        statisticsPopup = findViewById(R.id.statisticsPopup);
         wordGrid = findViewById(R.id.wordGrid);
         keyboardContainer = findViewById(R.id.keyboardContainer);
         txtStreakDisplay = findViewById(R.id.txtStreakDisplay);
 
-        // FIX 1: Pass user UID to GameStateManager to scope SharedPreferences keys
+        // Scope the State Manager to the active user's UID to isolate streak histories
         gameStateManager = new GameStateManager(this, user.getUid());
         gameStateManager.resetStreakIfMissed();
         updateStreakUI();
 
+        // Configures structural dimension specs dynamically (5, 6, 7, 8, or 9 letters)
         wordLength = getIntent().getIntExtra("WORD_LENGTH", 5);
 
         createGrid(wordLength);
         setupKeyboard(keyboardContainer);
 
-        // Fetch the list, parse it into the HashSet cache, and pick today's target word
+        // Asynchronously populate vocabulary lookup indices and calculate today's puzzle word
         generateDailyWord();
 
         btnBack.setOnClickListener(v -> finish());
@@ -124,7 +123,7 @@ public class GameActivity extends AppCompatActivity {
 
                 isGameOver = gameStateManager.isGameFinishedToday(wordLength);
                 if (isGameOver) {
-                    currentRow = maxRows;
+                    currentRow = maxRows; // Lock board access input metrics
                 } else {
                     for (int r = 0; r < maxRows; r++) {
                         boolean rowEmpty = true;
@@ -194,7 +193,7 @@ public class GameActivity extends AppCompatActivity {
                     ArrayList<String> filteredWords = new ArrayList<>();
                     HashSet<String> tempCache = new HashSet<>();
 
-                    // Single-pass optimization: populate our data cache and selection array simultaneously
+                    // Stream parsing: Populates lookup index and puzzle arrays simultaneously
                     for (String w : allWords) {
                         String clean = w.trim().toUpperCase();
                         if (clean.length() == wordLength) {
@@ -208,9 +207,10 @@ public class GameActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // Save the temporary set into our global lookup cache memory
+                    // Assign the temp map to our active lookup cache pointer
                     validWordsCache = tempCache;
 
+                    // Deterministic seed math generation based on phone clock metadata calendar variables
                     Calendar cal = Calendar.getInstance();
                     int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
                     int year = cal.get(Calendar.YEAR);
@@ -242,7 +242,7 @@ public class GameActivity extends AppCompatActivity {
         }
         String guess = guessBuilder.toString().toUpperCase();
 
-        // OFFLINE VALIDATION LOGIC: Check the locally hosted GitHub dataset memory cache
+        // Localized membership verification validation layer check running at O(1) efficiency
         if (validWordsCache.contains(guess)) {
             applyColoringAndMove(guess);
         } else {
@@ -254,6 +254,7 @@ public class GameActivity extends AppCompatActivity {
         int[] status = new int[wordLength];
         boolean[] targetUsed = new boolean[wordLength];
 
+        // First pass parsing check: identify precise matching Green locations
         for (int i = 0; i < wordLength; i++) {
             if (guess.charAt(i) == targetWord.charAt(i)) {
                 status[i] = 2;
@@ -261,6 +262,7 @@ public class GameActivity extends AppCompatActivity {
             }
         }
 
+        // Second pass parsing check: identify shifting Yellow boundaries
         for (int i = 0; i < wordLength; i++) {
             if (status[i] == 2) continue;
             for (int j = 0; j < wordLength; j++) {
@@ -272,12 +274,14 @@ public class GameActivity extends AppCompatActivity {
             }
         }
 
+        // Apply background drawable assignments across row targets
         for (int i = 0; i < wordLength; i++) {
             TextView cell = cells.get(currentRow * wordLength + i);
             String letter = String.valueOf(guess.charAt(i));
             applyCellColor(cell, letter, status[i]);
         }
 
+        // Win Verification Checkpoint Rule evaluation
         if (guess.equalsIgnoreCase(targetWord)) {
             isGameOver = true;
             Toast.makeText(this, "Splendid!", Toast.LENGTH_LONG).show();
@@ -290,9 +294,12 @@ public class GameActivity extends AppCompatActivity {
 
         currentRow++;
         currentCol = 0;
+
+        // Loss Verification Checkpoint Rule evaluation
         if (currentRow == maxRows) {
             isGameOver = true;
             Toast.makeText(this, "The word was: " + targetWord, Toast.LENGTH_LONG).show();
+            gameStateManager.setDailyAnswer(gameStateManager.getTodayDate(), 0); // Mark today as failed (0)
             saveGridState(true);
         } else {
             saveGridState(false);
@@ -317,36 +324,60 @@ public class GameActivity extends AppCompatActivity {
 
     private void submitScore(int attempts) {
         String uid = FirebaseAuth.getInstance().getUid();
-        if (uid == null) return;
+        if (uid == null) {
+            Log.e("WORDLE_SYNC", "User UID is null! Cannot submit score.");
+            return;
+        }
 
-        String dbUrl = "https://wordletogo-default-rtdb.asia-southeast1.firebasedatabase.app/";
-        FirebaseDatabase.getInstance(dbUrl).getReference("Users").child(uid).child("username")
+        String regionalDbUrl = "https://wordletogo-default-rtdb.asia-southeast1.firebasedatabase.app/";
+        FirebaseDatabase dbInstance = FirebaseDatabase.getInstance(regionalDbUrl);
+
+        // 1. Fetch the user's registered username from the profile node path directory
+        dbInstance.getReference("Users").child(uid)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        String username = snapshot.getValue(String.class);
-                        if (username != null) {
-                            String today = gameStateManager.getTodayDate();
-                            LeaderboardActivity.LeaderboardEntry entry = new LeaderboardActivity.LeaderboardEntry(
-                                    uid,
-                                    username,
-                                    attempts,
-                                    today,
-                                    System.currentTimeMillis()
-                            );
-
-                            FirebaseFirestore.getInstance().collection("leaderboard")
-                                    .document(uid + "_" + today)
-                                    .set(entry)
-                                    .addOnSuccessListener(aVoid -> {
-                                        Toast.makeText(GameActivity.this, "Score submitted!", Toast.LENGTH_SHORT).show();
-                                        startActivity(new Intent(GameActivity.this, LeaderboardActivity.class));
-                                    });
+                        String username = snapshot.child("username").getValue(String.class);
+                        if (username == null || username.trim().isEmpty()) {
+                            username = "User_" + uid.substring(0, 5);
                         }
+
+                        String today = gameStateManager.getTodayDate();
+                        int activeStreak = gameStateManager.getStreak();
+
+                        // 2. Package all data properties directly into a standard Map payload allocation
+                        java.util.HashMap<String, Object> entry = new java.util.HashMap<>();
+                        entry.put("uid", uid);
+                        entry.put("username", username);
+                        entry.put("attempts", attempts);
+                        entry.put("date", today);
+                        entry.put("streak", activeStreak);
+                        entry.put("timestamp", System.currentTimeMillis());
+
+                        Log.d("WORDLE_SYNC", "Writing score to RTDB path: leaderboard/" + today + "/" + uid);
+
+                        // 3. Save directly to your active Realtime Database tree paths node directory
+                        dbInstance.getReference("leaderboard").child(today).child(uid)
+                                .setValue(entry)
+                                .addOnSuccessListener(aVoid -> {
+                                    Log.d("WORDLE_SYNC", "RTDB Leaderboard table entry updated successfully!");
+                                    Toast.makeText(GameActivity.this, "Score and Streak synced to Cloud!", Toast.LENGTH_SHORT).show();
+
+                                    // Route cleanly over to the scoreboard dashboard presentation activity layout wrapper
+                                    Intent intent = new Intent(GameActivity.this, LeaderboardActivity.class);
+                                    startActivity(intent);
+                                    finish();
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e("WORDLE_SYNC", "RTDB write operation dropped out", e);
+                                    Toast.makeText(GameActivity.this, "Cloud Sync Failed!", Toast.LENGTH_SHORT).show();
+                                });
                     }
 
                     @Override
-                    public void onCancelled(@NonNull DatabaseError error) {}
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e("WORDLE_SYNC", "Database path lookup cancelled: " + error.getMessage());
+                    }
                 });
     }
 

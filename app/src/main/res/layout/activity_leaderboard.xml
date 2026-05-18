@@ -16,7 +16,8 @@
             android:layout_width="30dp"
             android:layout_height="30dp"
             android:src="@drawable/back"
-            android:layout_centerVertical="true"/>
+            android:layout_centerVertical="true"
+            android:contentDescription="Back Button" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -59,12 +60,30 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerLeaderboard"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/leaderboard_bg"
-        android:padding="8dp" />
+        android:layout_marginTop="8dp">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerLeaderboard"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/leaderboard_bg"
+            android:padding="8dp" />
+
+        <TextView
+            android:id="@+id/txtNoData"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="No scores submitted for today yet!\nBe the first one to win!"
+            android:textColor="#888888"
+            android:textSize="16sp"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.2"
+            android:visibility="gone" />
+
+    </FrameLayout>
 
 </LinearLayout>

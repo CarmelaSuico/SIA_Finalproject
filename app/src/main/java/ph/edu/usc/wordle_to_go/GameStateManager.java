@@ -11,6 +11,7 @@ public class GameStateManager {
     private static final String PREF_NAME = "WordlePrefs";
     private static final String KEY_STREAK = "streak_count";
     private static final String KEY_LAST_DATE = "last_played_date";
+    private static final String KEY_DAILY_ANSWER = "daily_answer_"; // Dynamic date key suffix mapping
     private static final String KEY_GRID_DATA = "grid_data_";
     private static final String KEY_GAME_FINISHED = "game_finished_";
 
@@ -34,19 +35,36 @@ public class GameStateManager {
         return prefs.getInt(KEY_STREAK, 0);
     }
 
+    /**
+     * Increments the streak upon a successful win.
+     * Marks the current day's answer status as 1.
+     */
     public void updateStreak() {
         String today = getTodayDate();
+        String yesterday = getYesterdayDate();
         String lastDate = prefs.getString(KEY_LAST_DATE, "");
 
-        if (today.equals(lastDate)) {
-            // Already played today, don't increment streak again
+        // Already solved today, safe-guard against multiple updates
+        if (getDailyAnswer(today) == 1) {
             return;
         }
 
+        setDailyAnswer(today, 1);
         int currentStreak = getStreak();
-        if (getYesterdayDate().equals(lastDate)) {
-            currentStreak++;
+
+        if (lastDate.isEmpty()) {
+            currentStreak = 1;
+        } else if (lastDate.equals(yesterday)) {
+            // Check if they played yesterday but failed (0 status). If so, reset to 1 instead.
+            if (getDailyAnswer(yesterday) == 0) {
+                currentStreak = 1;
+            } else {
+                currentStreak++;
+            }
+        } else if (lastDate.equals(today)) {
+            return;
         } else {
+            // Gap detected (skipped days)
             currentStreak = 1;
         }
 
@@ -56,13 +74,35 @@ public class GameStateManager {
                 .apply();
     }
 
+    /**
+     * Checks temporal integrity. If a whole day was skipped, or they explicitly
+     * failed yesterday (dailyAnswer = 0), the current streak drops to zero.
+     */
     public void resetStreakIfMissed() {
         String today = getTodayDate();
+        String yesterday = getYesterdayDate();
         String lastDate = prefs.getString(KEY_LAST_DATE, "");
 
-        if (!today.equals(lastDate) && !getYesterdayDate().equals(lastDate) && !lastDate.isEmpty()) {
+        if (lastDate.isEmpty()) return;
+
+        // Condition 1: Skipped a day entirely
+        if (!lastDate.equals(today) && !lastDate.equals(yesterday)) {
+            prefs.edit().putInt(KEY_STREAK, 0).apply();
+            return;
+        }
+
+        // Condition 2: Played yesterday but failed to find the target word (0)
+        if (lastDate.equals(yesterday) && getDailyAnswer(yesterday) == 0) {
             prefs.edit().putInt(KEY_STREAK, 0).apply();
         }
+    }
+
+    public void setDailyAnswer(String date, int status) {
+        prefs.edit().putInt(KEY_DAILY_ANSWER + date, status).apply();
+    }
+
+    public int getDailyAnswer(String date) {
+        return prefs.getInt(KEY_DAILY_ANSWER + date, 0); // Defaults to 0 (Not answered / failed)
     }
 
     public void saveGridState(int wordLength, String gridJson, boolean finished) {

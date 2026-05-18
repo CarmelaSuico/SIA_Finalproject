@@ -41,7 +41,6 @@ import java.util.HashMap;
 public class GameActivity extends AppCompatActivity {
 
     private View btnBack, btnLeaderboard;
-    private LinearLayout statisticsPopup;
     private GridLayout wordGrid;
     private ViewGroup keyboardContainer;
 
@@ -57,7 +56,6 @@ public class GameActivity extends AppCompatActivity {
     private GameStateManager gameStateManager;
     private TextView txtStreakDisplay;
 
-    // A single, guaranteed public database of English words
     private final String MASTER_WORD_LIST_URL = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt";
 
     @Override
@@ -67,22 +65,21 @@ public class GameActivity extends AppCompatActivity {
 
         btnBack = findViewById(R.id.btnBack);
         btnLeaderboard = findViewById(R.id.btnLeaderboard);
-        statisticsPopup = findViewById(R.id.statisticsPopup);
         wordGrid = findViewById(R.id.wordGrid);
         keyboardContainer = findViewById(R.id.keyboardContainer);
         txtStreakDisplay = findViewById(R.id.txtStreakDisplay);
 
         gameStateManager = new GameStateManager(this);
+
+        // Execute state analysis to determine whether streak continues or breaks
         gameStateManager.resetStreakIfMissed();
         updateStreakUI();
 
-        // Dynamically configures layout based on length intent (5, 6, 7, 8, or 9)
         wordLength = getIntent().getIntExtra("WORD_LENGTH", 5);
 
         createGrid(wordLength);
         setupKeyboard(keyboardContainer);
 
-        // Fetch the list and extract words matching the length criteria
         generateDailyWord();
 
         btnBack.setOnClickListener(v -> finish());
@@ -108,13 +105,11 @@ public class GameActivity extends AppCompatActivity {
                     cell.setText(letter.trim());
                     applyCellColor(cell, letter, status);
                 }
-                
-                // Determine current row/col
+
                 isGameOver = gameStateManager.isGameFinishedToday(wordLength);
                 if (isGameOver) {
-                    currentRow = maxRows; // Lock input
+                    currentRow = maxRows;
                 } else {
-                    // Find first empty row
                     for (int r = 0; r < maxRows; r++) {
                         boolean rowEmpty = true;
                         for (int c = 0; c < wordLength; c++) {
@@ -180,7 +175,6 @@ public class GameActivity extends AppCompatActivity {
                     String content = response.body().string();
                     String[] allWords = content.split("\r?\n");
 
-                    // Filter out words matching the explicit required character length
                     ArrayList<String> filteredWords = new ArrayList<>();
                     for (String w : allWords) {
                         String clean = w.trim();
@@ -194,7 +188,6 @@ public class GameActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // System analysis seed logic for time-based synchronization across client instances
                     Calendar cal = Calendar.getInstance();
                     int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
                     int year = cal.get(Calendar.YEAR);
@@ -202,7 +195,7 @@ public class GameActivity extends AppCompatActivity {
                     int index = (dayOfYear + year) % filteredWords.size();
                     targetWord = filteredWords.get(index);
                     Log.d("WORDLE_LOGIC", "Today's " + wordLength + "-letter Word: " + targetWord);
-                    
+
                     runOnUiThread(GameActivity.this::restoreSavedState);
                 } else {
                     runOnUiThread(() -> targetWord = getFallbackWord(wordLength));
@@ -286,6 +279,8 @@ public class GameActivity extends AppCompatActivity {
         if (guess.equalsIgnoreCase(targetWord)) {
             isGameOver = true;
             Toast.makeText(this, "Splendid!", Toast.LENGTH_LONG).show();
+
+            // Updates internal state mapping (Sets answer to 1, updates streak cache)
             gameStateManager.updateStreak();
             updateStreakUI();
             saveGridState(true);
@@ -298,6 +293,9 @@ public class GameActivity extends AppCompatActivity {
         if (currentRow == maxRows) {
             isGameOver = true;
             Toast.makeText(this, "The word was: " + targetWord, Toast.LENGTH_LONG).show();
+
+            // Explicit tracking failure state registration
+            gameStateManager.setDailyAnswer(gameStateManager.getTodayDate(), 0);
             saveGridState(true);
         } else {
             saveGridState(false);

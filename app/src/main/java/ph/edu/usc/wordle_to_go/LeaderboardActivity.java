@@ -1,17 +1,25 @@
 package ph.edu.usc.wordle_to_go;
 
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -24,6 +32,7 @@ public class LeaderboardActivity extends AppCompatActivity {
     private LeaderboardAdapter adapter;
     private List<LeaderboardEntry> leaderboardList = new ArrayList<>();
     private FirebaseFirestore db;
+    private TextView txtNoData; // UI feedback helper
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,6 +40,9 @@ public class LeaderboardActivity extends AppCompatActivity {
         setContentView(R.layout.activity_leaderboard);
 
         findViewById(R.id.btnBackLeaderboard).setOnClickListener(v -> finish());
+
+        // Optional: Add a placeholder TextView to your layout XML if there are no entries
+        txtNoData = findViewById(R.id.txtNoData);
 
         recyclerView = findViewById(R.id.recyclerLeaderboard);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -44,10 +56,11 @@ public class LeaderboardActivity extends AppCompatActivity {
     private void fetchLeaderboard() {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
+        // Multi-level query aggregation pattern
         db.collection("leaderboard")
                 .whereEqualTo("date", today)
-                .orderBy("attempts", Query.Direction.ASCENDING)
-                .orderBy("timestamp", Query.Direction.ASCENDING)
+                .orderBy("attempts", Query.Direction.ASCENDING)   // Fewest attempts = Winner (#1 rank)
+                .orderBy("timestamp", Query.Direction.ASCENDING)  // Tiebreaker: First to solve wins the higher rank
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     leaderboardList.clear();
@@ -55,7 +68,26 @@ public class LeaderboardActivity extends AppCompatActivity {
                         LeaderboardEntry entry = doc.toObject(LeaderboardEntry.class);
                         leaderboardList.add(entry);
                     }
+
+                    // UI State Toggling
+                    if (leaderboardList.isEmpty()) {
+                        if (txtNoData != null) txtNoData.setVisibility(View.VISIBLE);
+                    } else {
+                        if (txtNoData != null) txtNoData.setVisibility(View.GONE);
+                    }
+
                     adapter.notifyDataSetChanged();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("FIRESTORE_LEADERBOARD", "Error loading leaderboard", e);
+
+                    // Critical IT Pro-Tip handler logic check for composite index crashes
+                    if (e instanceof FirebaseFirestoreException &&
+                            ((FirebaseFirestoreException) e).getCode() == FirebaseFirestoreException.Code.FAILED_PRECONDITION) {
+                        Toast.makeText(this, "Composite Index required! Check Logcat for the setup link.", Toast.LENGTH_LONG).show();
+                    } else {
+                        Toast.makeText(this, "Failed to load leaderboard scores.", Toast.LENGTH_SHORT).show();
+                    }
                 });
     }
 
@@ -65,7 +97,7 @@ public class LeaderboardActivity extends AppCompatActivity {
         public String date;
         public long timestamp;
 
-        public LeaderboardEntry() {} // Required for Firestore
+        public LeaderboardEntry() {} // Required explicitly for Firestore parsing loops
 
         public LeaderboardEntry(String username, int attempts, String date, long timestamp) {
             this.username = username;
@@ -92,9 +124,27 @@ public class LeaderboardActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             LeaderboardEntry entry = list.get(position);
-            holder.txtRank.setText("#" + (position + 1));
+
+            // Format styling variables
+            int rank = position + 1;
+            holder.txtRank.setText("#" + rank);
             holder.txtUsername.setText(entry.username);
-            holder.txtAttempts.setText(String.valueOf(entry.attempts));
+            holder.txtAttempts.setText(entry.attempts + " " + (entry.attempts == 1 ? "guess" : "guesses"));
+
+            // Visual Polish: Give top 3 places custom styling signatures
+            if (rank == 1) {
+                holder.txtRank.setTextColor(Color.parseColor("#FFD700")); // Gold color highlight
+                holder.txtRank.setTypeface(null, Typeface.BOLD);
+            } else if (rank == 2) {
+                holder.txtRank.setTextColor(Color.parseColor("#C0C0C0")); // Silver color highlight
+                holder.txtRank.setTypeface(null, Typeface.BOLD);
+            } else if (rank == 3) {
+                holder.txtRank.setTextColor(Color.parseColor("#CD7F32")); // Bronze color highlight
+                holder.txtRank.setTypeface(null, Typeface.BOLD);
+            } else {
+                holder.txtRank.setTextColor(Color.parseColor("#FFFFFF")); // Default text wrap color
+                holder.txtRank.setTypeface(null, Typeface.NORMAL);
+            }
         }
 
         @Override

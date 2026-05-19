@@ -34,10 +34,13 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 
 public class GameActivity extends AppCompatActivity {
 
@@ -47,8 +50,6 @@ public class GameActivity extends AppCompatActivity {
 
     private ArrayList<TextView> cells = new ArrayList<>();
     private HashMap<String, Integer> keyState = new HashMap<>();
-
-    // High-performance cache lookup memory structure for instantaneous guess validation
     private HashSet<String> validWordsCache = new HashSet<>();
 
     private int wordLength;
@@ -57,16 +58,17 @@ public class GameActivity extends AppCompatActivity {
     private final int maxRows = 6;
     private String targetWord = "";
     private boolean isGameOver = false;
+
     private GameStateManager gameStateManager;
     private TextView txtStreakDisplay;
 
     private final String MASTER_WORD_LIST_URL = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt";
+    private final String REGIONAL_DB_URL = "https://wordletogo-default-rtdb.asia-southeast1.firebasedatabase.app/";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Security Checkpoint: Route back to Login if the user instance token is empty
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
             startActivity(new Intent(this, LoginActivity.class));
@@ -82,23 +84,18 @@ public class GameActivity extends AppCompatActivity {
         keyboardContainer = findViewById(R.id.keyboardContainer);
         txtStreakDisplay = findViewById(R.id.txtStreakDisplay);
 
-        // Configures structural dimension specs dynamically (5, 6, 7, 8, or 9 letters)
         wordLength = getIntent().getIntExtra("WORD_LENGTH", 5);
 
-        // FIX: Only initialize and run streak operations if playing the official 5-letter game
         if (wordLength == 5) {
             gameStateManager = new GameStateManager(this, user.getUid());
             gameStateManager.resetStreakIfMissed();
             updateStreakUI();
         } else {
-            // Hide or clear the streak icon entirely for casual sandbox play modes
             txtStreakDisplay.setVisibility(View.GONE);
         }
 
         createGrid(wordLength);
         setupKeyboard(keyboardContainer);
-
-        // Asynchronously populate vocabulary lookup indices and calculate today's puzzle word
         generateDailyWord();
 
         btnBack.setOnClickListener(v -> finish());
@@ -115,63 +112,258 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void restoreSavedState() {
-        // Only attempt to read saved grid files for the active 5-letter channel
-        if (wordLength != 5 || gameStateManager == null) return;
+        if (wordLength != 5) return;
 
-        String savedData = gameStateManager.getSavedGridData(wordLength);
-        if (savedData != null) {
-            try {
-                JSONArray array = new JSONArray(savedData);
-                for (int i = 0; i < array.length(); i++) {
-                    JSONObject obj = array.getJSONObject(i);
-                    String letter = obj.getString("l").trim();
-                    int status = obj.getInt("s");
-                    TextView cell = cells.get(i);
-                    cell.setText(letter);
-                    applyCellColor(cell, letter, status);
-                }
+        String uid = FirebaseAuth.getInstance().getUid();
+        if (uid == null) return;
 
-                isGameOver = gameStateManager.isGameFinishedToday(wordLength);
-                if (isGameOver) {
-                    currentRow = maxRows; // Lock board access input metrics
-                } else {
-                    for (int r = 0; r < maxRows; r++) {
-                        boolean rowEmpty = true;
-                        for (int c = 0; c < wordLength; c++) {
-                            if (!cells.get(r * wordLength + c).getText().toString().isEmpty()) {
-                                rowEmpty = false;
-                                break;
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DATE, -1);
+        String yesterday = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.getTime());
+
+        FirebaseDatabase db = FirebaseDatabase.getInstance(REGIONAL_DB_URL);
+
+        // 1. FIRST: Look up yesterday's records to fetch their active running streak from any device
+        db.getReference("leaderboard").child(yesterday).child(uid)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot streakSnapshot) {
+                        int streakFromYesterday = 0;
+                        if (streakSnapshot.exists() && streakSnapshot.hasChild("streak")) {
+                            Integer historicalStreak = streakSnapshot.child("streak").getValue(Integer.class);
+                            if (historicalStreak != null) {
+                                streakFromYesterday = historicalStreak;
                             }
                         }
-                        if (rowEmpty) {
-                            currentRow = r;
-                            break;
+
+                        // Push the retrieved cloud streak count directly to our local manager state memory
+                        if (gameStateManager != null) {
+                            // We set it inside our phone runtime memory so submitScore can read it later
+                            gameStateManager.setTemporaryCloudStreak(streakFromYesterday);
                         }
-                        if (r == maxRows - 1) currentRow = maxRows;
+
+                        // Render the cloud streak value visually on screen layout targets immediately
+                        txtStreakDisplay.setText("🔥 " + streakFromYesterday);
+                        txtStreakDisplay.setVisibility(View.VISIBLE);
+
+                        // 2. SECOND: Proceed to pull and reconstruct the active row grid layout blocks
+                        db.getReference("active_sessions").child(uid).child(today)
+                                .addListenerForSingleValueEvent(new ValueEventListener() {
+                                    @Override
+                                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                        if (!snapshot.exists()) return;
+
+                                        String savedData = snapshot.child("grid_data").getValue(String.class);
+                                        Boolean finished = snapshot.child("is_finished").getValue(Boolean.class);
+
+                                        if (savedData != null) {
+                                            try {
+                                                JSONArray array = new JSONArray(savedData);
+                                                for (int i = 0; i < array.length(); i++) {
+                                                    JSONObject obj = array.getJSONObject(i);
+                                                    String letter = obj.getString("l").trim();
+                                                    int status = obj.getInt("s");
+                                                    TextView cell = cells.get(i);
+                                                    cell.setText(letter);
+                                                    applyCellColor(cell, letter, status);
+                                                }
+
+                                                isGameOver = (finished != null && finished);
+                                                if (isGameOver) {
+                                                    currentRow = maxRows;
+
+                                                    // If they already won today, pull today's specific streak instead of yesterday's
+                                                    db.getReference("leaderboard").child(today).child(uid).child("streak")
+                                                            .addListenerForSingleValueEvent(new ValueEventListener() {
+                                                                @Override
+                                                                public void onDataChange(@NonNull DataSnapshot todayStreakSnap) {
+                                                                    Integer todayStreak = todayStreakSnap.getValue(Integer.class);
+                                                                    if (todayStreak != null) {
+                                                                        txtStreakDisplay.setText("🔥 " + todayStreak);
+                                                                    }
+                                                                }
+                                                                @Override
+                                                                public void onCancelled(@NonNull DatabaseError error) {}
+                                                            });
+                                                } else {
+                                                    for (int r = 0; r < maxRows; r++) {
+                                                        boolean rowEmpty = true;
+                                                        for (int c = 0; c < wordLength; c++) {
+                                                            if (!cells.get(r * wordLength + c).getText().toString().isEmpty()) {
+                                                                rowEmpty = false;
+                                                                break;
+                                                            }
+                                                        }
+                                                        if (rowEmpty) {
+                                                            currentRow = r;
+                                                            break;
+                                                        }
+                                                        if (r == maxRows - 1) currentRow = maxRows;
+                                                    }
+                                                }
+                                            } catch (JSONException e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onCancelled(@NonNull DatabaseError error) {
+                                        Log.e("WORDLE_SYNC", "Failed to pull cloud grid layout state: " + error.getMessage());
+                                    }
+                                });
                     }
-                }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e("WORDLE_SYNC", "Failed to fetch historical streak node branch", error.toException());
+                    }
+                });
+    }
+
+    private void saveGridState(boolean finished) {
+        if (wordLength != 5) return;
+
+        String uid = FirebaseAuth.getInstance().getUid();
+        if (uid == null) return;
+
+        JSONArray array = new JSONArray();
+        for (TextView cell : cells) {
+            JSONObject obj = new JSONObject();
+            try {
+                obj.put("l", cell.getText().toString());
+                Object tag = cell.getTag();
+                obj.put("s", (tag instanceof Integer) ? (Integer) tag : -1);
+                array.put(obj);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
         }
+
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+        HashMap<String, Object> sessionData = new HashMap<>();
+        sessionData.put("grid_data", array.toString());
+        sessionData.put("is_finished", finished);
+        sessionData.put("word_length", wordLength);
+
+        FirebaseDatabase.getInstance(REGIONAL_DB_URL)
+                .getReference("active_sessions")
+                .child(uid)
+                .child(today)
+                .setValue(sessionData)
+                .addOnFailureListener(e -> Log.e("WORDLE_SYNC", "Failed to sync grid state to cloud", e));
     }
 
-    private void applyCellColor(TextView cell, String letter, int status) {
-        int color;
-        if (status == 2) {
-            cell.setBackgroundResource(R.drawable.rounded_green);
-            color = Color.parseColor("#6AAA64");
-        } else if (status == 1) {
-            cell.setBackgroundResource(R.drawable.rounded_yellow);
-            color = Color.parseColor("#C9B458");
-        } else if (status == 0) {
-            cell.setBackgroundResource(R.drawable.rounded_gray);
-            color = Color.parseColor("#3A3A3C");
-        } else {
+    private void applyColoringAndMove(String guess) {
+        int[] status = new int[wordLength];
+        boolean[] targetUsed = new boolean[wordLength];
+
+        for (int i = 0; i < wordLength; i++) {
+            if (guess.charAt(i) == targetWord.charAt(i)) {
+                status[i] = 2;
+                targetUsed[i] = true;
+            }
+        }
+
+        for (int i = 0; i < wordLength; i++) {
+            if (status[i] == 2) continue;
+            for (int j = 0; j < wordLength; j++) {
+                if (!targetUsed[j] && guess.charAt(i) == targetWord.charAt(j)) {
+                    status[i] = 1;
+                    targetUsed[j] = true;
+                    break;
+                }
+            }
+        }
+
+        for (int i = 0; i < wordLength; i++) {
+            TextView cell = cells.get(currentRow * wordLength + i);
+            String letter = String.valueOf(guess.charAt(i));
+            applyCellColor(cell, letter, status[i]);
+        }
+
+        if (guess.equalsIgnoreCase(targetWord)) {
+            isGameOver = true;
+            Toast.makeText(this, "Splendid!", Toast.LENGTH_LONG).show();
+
+            if (wordLength == 5 && gameStateManager != null) {
+                gameStateManager.updateStreak();
+                updateStreakUI();
+                saveGridState(true);
+                submitScore(currentRow + 1);
+            } else {
+                currentRow = maxRows;
+            }
             return;
         }
-        cell.setTag(status);
-        updateKeyboardColor(letter, status, color);
+
+        currentRow++;
+        currentCol = 0;
+
+        if (currentRow == maxRows) {
+            isGameOver = true;
+            Toast.makeText(this, "The word was: " + targetWord, Toast.LENGTH_LONG).show();
+
+            if (wordLength == 5 && gameStateManager != null) {
+                gameStateManager.setDailyAnswer(gameStateManager.getTodayDate(), 0);
+                saveGridState(true);
+            }
+        } else {
+            if (wordLength == 5 && gameStateManager != null) {
+                saveGridState(false);
+            }
+        }
+    }
+
+    private void submitScore(int attempts) {
+        if (wordLength != 5) return;
+
+        String uid = FirebaseAuth.getInstance().getUid();
+        if (uid == null) return;
+
+        FirebaseDatabase dbInstance = FirebaseDatabase.getInstance(REGIONAL_DB_URL);
+
+        dbInstance.getReference("Users").child(uid)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        String username = snapshot.child("username").getValue(String.class);
+                        if (username == null || username.trim().isEmpty()) {
+                            username = "User_" + uid.substring(0, 5);
+                        }
+
+                        String today = gameStateManager.getTodayDate();
+                        int activeStreak = gameStateManager.getStreak();
+
+                        HashMap<String, Object> entry = new HashMap<>();
+                        entry.put("uid", uid);
+                        entry.put("username", username);
+                        entry.put("attempts", attempts);
+                        entry.put("date", today);
+                        entry.put("streak", activeStreak);
+                        entry.put("timestamp", System.currentTimeMillis());
+
+                        dbInstance.getReference("leaderboard").child(today).child(uid)
+                                .setValue(entry)
+                                .addOnSuccessListener(aVoid -> {
+                                    Toast.makeText(GameActivity.this, "Score and Streak synced to Cloud!", Toast.LENGTH_SHORT).show();
+                                    Intent intent = new Intent(GameActivity.this, LeaderboardActivity.class);
+                                    startActivity(intent);
+                                    finish();
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(GameActivity.this, "Cloud Sync Failed!", Toast.LENGTH_SHORT).show();
+                                });
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e("WORDLE_SYNC", "Database path lookup cancelled: " + error.getMessage());
+                    }
+                });
     }
 
     private String getFallbackWord(int length) {
@@ -203,7 +395,6 @@ public class GameActivity extends AppCompatActivity {
                     ArrayList<String> filteredWords = new ArrayList<>();
                     HashSet<String> tempCache = new HashSet<>();
 
-                    // Stream parsing: Populates lookup index and puzzle arrays simultaneously
                     for (String w : allWords) {
                         String clean = w.trim().toUpperCase();
                         if (clean.length() == wordLength) {
@@ -217,17 +408,14 @@ public class GameActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // Assign the temp map to our active lookup cache pointer
                     validWordsCache = tempCache;
 
-                    // Deterministic seed math generation based on phone clock metadata calendar variables
                     Calendar cal = Calendar.getInstance();
                     int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
                     int year = cal.get(Calendar.YEAR);
 
                     int index = (dayOfYear + year) % filteredWords.size();
                     targetWord = filteredWords.get(index);
-                    Log.d("WORDLE_LOGIC", "Today's " + wordLength + "-letter Word: " + targetWord);
 
                     runOnUiThread(() -> {
                         if (wordLength == 5) {
@@ -242,9 +430,7 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void submitGuess() {
-        if (isGameOver) return;
-        if (targetWord.isEmpty()) return;
-
+        if (isGameOver || targetWord.isEmpty()) return;
         if (currentCol < wordLength) {
             Toast.makeText(this, "Not enough letters", Toast.LENGTH_SHORT).show();
             return;
@@ -256,7 +442,6 @@ public class GameActivity extends AppCompatActivity {
         }
         String guess = guessBuilder.toString().toUpperCase();
 
-        // Localized membership verification validation layer check running at O(1) efficiency
         if (validWordsCache.contains(guess)) {
             applyColoringAndMove(guess);
         } else {
@@ -264,149 +449,22 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    private void applyColoringAndMove(String guess) {
-        int[] status = new int[wordLength];
-        boolean[] targetUsed = new boolean[wordLength];
-
-        // First pass parsing check: identify precise matching Green locations
-        for (int i = 0; i < wordLength; i++) {
-            if (guess.charAt(i) == targetWord.charAt(i)) {
-                status[i] = 2;
-                targetUsed[i] = true;
-            }
-        }
-
-        // Second pass parsing check: identify shifting Yellow boundaries
-        for (int i = 0; i < wordLength; i++) {
-            if (status[i] == 2) continue;
-            for (int j = 0; j < wordLength; j++) {
-                if (!targetUsed[j] && guess.charAt(i) == targetWord.charAt(j)) {
-                    status[i] = 1;
-                    targetUsed[j] = true;
-                    break;
-                }
-            }
-        }
-
-        // Apply background drawable assignments across row targets
-        for (int i = 0; i < wordLength; i++) {
-            TextView cell = cells.get(currentRow * wordLength + i);
-            String letter = String.valueOf(guess.charAt(i));
-            applyCellColor(cell, letter, status[i]);
-        }
-
-        // Win Verification Checkpoint Rule evaluation
-        if (guess.equalsIgnoreCase(targetWord)) {
-            isGameOver = true;
-            Toast.makeText(this, "Splendid!", Toast.LENGTH_LONG).show();
-
-            // If playing the official 5-letter variant, handle competitive tracking and sync
-            if (wordLength == 5 && gameStateManager != null) {
-                gameStateManager.updateStreak();
-                updateStreakUI();
-                saveGridState(true);
-                submitScore(currentRow + 1);
-            } else {
-                // FIXED: Casual Mode (6-9 letters) now simply stops here.
-                // It shows "Splendid!" but stays on the game page without redirecting.
-                currentRow = maxRows; // Lock the grid input keys from further typing
-            }
-            return;
-        }
-
-        currentRow++;
-        currentCol = 0;
-
-        // Loss Verification Checkpoint Rule evaluation
-        if (currentRow == maxRows) {
-            isGameOver = true;
-            Toast.makeText(this, "The word was: " + targetWord, Toast.LENGTH_LONG).show();
-
-            if (wordLength == 5 && gameStateManager != null) {
-                gameStateManager.setDailyAnswer(gameStateManager.getTodayDate(), 0); // Mark today as failed (0)
-                saveGridState(true);
-            }
+    private void applyCellColor(TextView cell, String letter, int status) {
+        int color;
+        if (status == 2) {
+            cell.setBackgroundResource(R.drawable.rounded_green);
+            color = Color.parseColor("#6AAA64");
+        } else if (status == 1) {
+            cell.setBackgroundResource(R.drawable.rounded_yellow);
+            color = Color.parseColor("#C9B458");
+        } else if (status == 0) {
+            cell.setBackgroundResource(R.drawable.rounded_gray);
+            color = Color.parseColor("#3A3A3C");
         } else {
-            if (wordLength == 5 && gameStateManager != null) {
-                saveGridState(false);
-            }
-        }
-    }
-
-    private void saveGridState(boolean finished) {
-        if (wordLength != 5 || gameStateManager == null) return;
-
-        JSONArray array = new JSONArray();
-        for (TextView cell : cells) {
-            JSONObject obj = new JSONObject();
-            try {
-                obj.put("l", cell.getText().toString());
-                Object tag = cell.getTag();
-                obj.put("s", (tag instanceof Integer) ? (Integer) tag : -1);
-                array.put(obj);
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-        gameStateManager.saveGridState(wordLength, array.toString(), finished);
-    }
-
-    private void submitScore(int attempts) {
-        // This execution protection check guarantees that non-standard game lengths fail immediately if they call this method
-        if (wordLength != 5) return;
-
-        String uid = FirebaseAuth.getInstance().getUid();
-        if (uid == null) {
-            Log.e("WORDLE_SYNC", "User UID is null! Cannot submit score.");
             return;
         }
-
-        String regionalDbUrl = "https://wordletogo-default-rtdb.asia-southeast1.firebasedatabase.app/";
-        FirebaseDatabase dbInstance = FirebaseDatabase.getInstance(regionalDbUrl);
-
-        dbInstance.getReference("Users").child(uid)
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        String username = snapshot.child("username").getValue(String.class);
-                        if (username == null || username.trim().isEmpty()) {
-                            username = "User_" + uid.substring(0, 5);
-                        }
-
-                        String today = gameStateManager.getTodayDate();
-                        int activeStreak = gameStateManager.getStreak();
-
-                        java.util.HashMap<String, Object> entry = new java.util.HashMap<>();
-                        entry.put("uid", uid);
-                        entry.put("username", username);
-                        entry.put("attempts", attempts);
-                        entry.put("date", today);
-                        entry.put("streak", activeStreak);
-                        entry.put("timestamp", System.currentTimeMillis());
-
-                        Log.d("WORDLE_SYNC", "Writing score to RTDB path: leaderboard/" + today + "/" + uid);
-
-                        dbInstance.getReference("leaderboard").child(today).child(uid)
-                                .setValue(entry)
-                                .addOnSuccessListener(aVoid -> {
-                                    Log.d("WORDLE_SYNC", "RTDB Leaderboard table entry updated successfully!");
-                                    Toast.makeText(GameActivity.this, "Score and Streak synced to Cloud!", Toast.LENGTH_SHORT).show();
-
-                                    Intent intent = new Intent(GameActivity.this, LeaderboardActivity.class);
-                                    startActivity(intent);
-                                    finish();
-                                })
-                                .addOnFailureListener(e -> {
-                                    Log.e("WORDLE_SYNC", "RTDB write operation dropped out", e);
-                                    Toast.makeText(GameActivity.this, "Cloud Sync Failed!", Toast.LENGTH_SHORT).show();
-                                });
-                    }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Log.e("WORDLE_SYNC", "Database path lookup cancelled: " + error.getMessage());
-                    }
-                });
+        cell.setTag(status);
+        updateKeyboardColor(letter, status, color);
     }
 
     private void updateKeyboardColor(String letter, int status, int color) {

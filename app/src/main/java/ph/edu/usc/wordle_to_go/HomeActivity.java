@@ -7,18 +7,17 @@ import android.widget.LinearLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.firebase.auth.FirebaseAuth; // Added FirebaseAuth import
+import com.google.firebase.auth.FirebaseAuth;
 
 public class HomeActivity extends AppCompatActivity {
 
     LinearLayout cardDaily, cardLeaderboard;
-    Button btn6, btn7, btn8, btn9, btnLogout; // Added btnLogout
+    Button btn6, btn7, btn8, btn9, btnLogout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // FIX 3: Redirect to login if user is not authenticated
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
             startActivity(new Intent(this, LoginActivity.class));
             finish();
@@ -33,7 +32,7 @@ public class HomeActivity extends AppCompatActivity {
         btn7 = findViewById(R.id.btn7Letters);
         btn8 = findViewById(R.id.btn8Letters);
         btn9 = findViewById(R.id.btn9Letters);
-        btnLogout = findViewById(R.id.btnLogout); // FIX 3: Initialize logout button
+        btnLogout = findViewById(R.id.btnLogout);
 
         cardDaily.setOnClickListener(v -> openGame(5));
         cardLeaderboard.setOnClickListener(v -> {
@@ -48,7 +47,6 @@ public class HomeActivity extends AppCompatActivity {
         // FIX 3: Logout logic
         btnLogout.setOnClickListener(v -> {
             FirebaseAuth.getInstance().signOut();
-            // Clear any in-memory cached state if it existed (none significant here)
             Intent intent = new Intent(HomeActivity.this, LoginActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);

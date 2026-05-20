@@ -63,17 +63,14 @@ public class LeaderboardActivity extends AppCompatActivity {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
         String regionalDbUrl = "https://wordletogo-default-rtdb.asia-southeast1.firebasedatabase.app/";
 
-        // THE REALTIME PLACEMENT ENGINE: Reads today's node directory and orders child entries by attempts ascending
         com.google.firebase.database.FirebaseDatabase.getInstance(regionalDbUrl)
                 .getReference("leaderboard").child(today)
-                .orderByChild("attempts") // Orders entries automatically from 1 to 6 tries
+                .orderByChild("attempts")
                 .addValueEventListener(new com.google.firebase.database.ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull com.google.firebase.database.DataSnapshot dataSnapshot) {
                         leaderboardList.clear();
 
-                        // Realtime Database returns queries sorted from lowest to highest.
-                        // We loop through the child entries and append them straight into our listing target vector layout structures
                         for (com.google.firebase.database.DataSnapshot snapshot : dataSnapshot.getChildren()) {
                             LeaderboardEntry entry = snapshot.getValue(LeaderboardEntry.class);
                             if (entry != null) {
@@ -81,14 +78,13 @@ public class LeaderboardActivity extends AppCompatActivity {
                             }
                         }
 
-                        // Dynamic element visibility toggle
                         if (leaderboardList.isEmpty()) {
                             if (txtNoData != null) txtNoData.setVisibility(View.VISIBLE);
                         } else {
                             if (txtNoData != null) txtNoData.setVisibility(View.GONE);
                         }
 
-                        adapter.notifyDataSetChanged(); // Forces table rows to update on screen layout display grids
+                        adapter.notifyDataSetChanged();
                     }
 
                     @Override
@@ -98,14 +94,13 @@ public class LeaderboardActivity extends AppCompatActivity {
                 });
     }
 
-    // THE DATA SCHEMA DESERIALIZATION BLUEPRINT
     public static class LeaderboardEntry {
         public String uid;
         public String username;
         public int attempts;
         public String date;
         public long timestamp;
-        public int streak; // Maps and preserves the uploaded cloud streak metrics
+        public int streak;
 
         public LeaderboardEntry() {}
 
@@ -141,23 +136,20 @@ public class LeaderboardActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             LeaderboardEntry entry = list.get(position);
 
-            // Position index + 1 translates array ordering directly to visual board rankings
             int rank = position + 1;
             holder.txtRank.setText("#" + rank);
             holder.txtUsername.setText(entry.username);
 
-            // FIXED: Cleaned up string formatting duplication issue
             holder.txtAttempts.setText(entry.attempts + (entry.attempts == 1 ? " guess " : " guesses ") + "🔥" + entry.streak);
 
-            // Visual layout badges matching Top 1, 2, and 3
             if (rank == 1) {
-                holder.txtRank.setTextColor(Color.parseColor("#FFD700")); // Gold highlight for Top 1
+                holder.txtRank.setTextColor(Color.parseColor("#FFD700"));
                 holder.txtRank.setTypeface(null, Typeface.BOLD);
             } else if (rank == 2) {
-                holder.txtRank.setTextColor(Color.parseColor("#C0C0C0")); // Silver highlight
+                holder.txtRank.setTextColor(Color.parseColor("#C0C0C0"));
                 holder.txtRank.setTypeface(null, Typeface.BOLD);
             } else if (rank == 3) {
-                holder.txtRank.setTextColor(Color.parseColor("#CD7F32")); // Bronze highlight
+                holder.txtRank.setTextColor(Color.parseColor("#CD7F32"));
                 holder.txtRank.setTypeface(null, Typeface.BOLD);
             } else {
                 holder.txtRank.setTextColor(Color.parseColor("#FFFFFF"));

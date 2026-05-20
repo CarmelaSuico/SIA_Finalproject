@@ -16,7 +16,6 @@ public class GameStateManager {
     private final SharedPreferences prefs;
     private final String userId;
 
-    // NEW: Runtime cloud sync memory anchor to safely transfer streak across device hardware switching
     private int cloudStreakFallback = 0;
 
     public GameStateManager(Context context, String userId) {
@@ -34,13 +33,11 @@ public class GameStateManager {
         return new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.getTime());
     }
 
-    // NEW Setter: Invoked by GameActivity when it pulls your history profile from the network
     public void setTemporaryCloudStreak(int streakCount) {
         this.cloudStreakFallback = streakCount;
     }
 
     public int getStreak() {
-        // If our runtime database sync retrieved a valid historical number, use it! Otherwise fallback to local.
         if (cloudStreakFallback > 0) {
             return cloudStreakFallback;
         }
@@ -58,7 +55,6 @@ public class GameStateManager {
 
         setDailyAnswer(today, 1);
 
-        // This will now dynamically read the downloaded cloud baseline integer!
         int currentStreak = getStreak();
 
         if (lastDate.isEmpty() && cloudStreakFallback == 0) {
@@ -75,7 +71,6 @@ public class GameStateManager {
             currentStreak = 1;
         }
 
-        // Save locally for offline usage protection, and update runtime tracking references
         this.cloudStreakFallback = currentStreak;
         prefs.edit()
                 .putInt(KEY_STREAK, currentStreak)

@@ -11,7 +11,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser; // Added FirebaseUser import
+import com.google.firebase.auth.FirebaseUser;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -23,7 +23,6 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        // FIX 3: If user is already logged in, redirect to HomeActivity
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
             startActivity(new Intent(LoginActivity.this, HomeActivity.class));
@@ -34,23 +33,19 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login); // Ensure this matches your XML filename
+        setContentView(R.layout.activity_login);
 
-        // 1. Initialize Firebase Auth
         mAuth = FirebaseAuth.getInstance();
 
-        // 2. Bind Views
         edtEmail = findViewById(R.id.edtLoginEmail);
         edtPassword = findViewById(R.id.edtLoginPassword);
         btnLogin = findViewById(R.id.btnLogin);
         txtGoSignup = findViewById(R.id.txtGoSignup);
 
-        // 3. Login Button Logic
         btnLogin.setOnClickListener(v -> {
             loginUser();
         });
 
-        // 4. Redirect to Sign Up if needed
         txtGoSignup.setOnClickListener(v -> {
             Intent intent = new Intent(LoginActivity.this, SignUpActivity.class);
             startActivity(intent);
@@ -66,19 +61,15 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        // Firebase Auth: Sign In
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
-                        // Login success
                         Toast.makeText(LoginActivity.this, "Welcome back!", Toast.LENGTH_SHORT).show();
 
-                        // Move to HomeActivity
                         Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
                         startActivity(intent);
-                        finish(); // Prevent user from going back to login screen
+                        finish();
                     } else {
-                        // Login failed (wrong password, user doesn't exist, etc.)
                         Toast.makeText(LoginActivity.this, "Login Failed: " +
                                 task.getException().getMessage(), Toast.LENGTH_LONG).show();
                     }

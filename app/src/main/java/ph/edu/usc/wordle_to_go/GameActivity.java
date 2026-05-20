@@ -125,7 +125,6 @@ public class GameActivity extends AppCompatActivity {
 
         FirebaseDatabase db = FirebaseDatabase.getInstance(REGIONAL_DB_URL);
 
-        // 1. FIRST: Look up yesterday's records to fetch their active running streak from any device
         db.getReference("leaderboard").child(yesterday).child(uid)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
@@ -138,17 +137,13 @@ public class GameActivity extends AppCompatActivity {
                             }
                         }
 
-                        // Push the retrieved cloud streak count directly to our local manager state memory
                         if (gameStateManager != null) {
-                            // We set it inside our phone runtime memory so submitScore can read it later
                             gameStateManager.setTemporaryCloudStreak(streakFromYesterday);
                         }
 
-                        // Render the cloud streak value visually on screen layout targets immediately
                         txtStreakDisplay.setText("🔥 " + streakFromYesterday);
                         txtStreakDisplay.setVisibility(View.VISIBLE);
 
-                        // 2. SECOND: Proceed to pull and reconstruct the active row grid layout blocks
                         db.getReference("active_sessions").child(uid).child(today)
                                 .addListenerForSingleValueEvent(new ValueEventListener() {
                                     @Override
@@ -174,7 +169,6 @@ public class GameActivity extends AppCompatActivity {
                                                 if (isGameOver) {
                                                     currentRow = maxRows;
 
-                                                    // If they already won today, pull today's specific streak instead of yesterday's
                                                     db.getReference("leaderboard").child(today).child(uid).child("streak")
                                                             .addListenerForSingleValueEvent(new ValueEventListener() {
                                                                 @Override
